@@ -85,7 +85,7 @@ context = AnalysisContext(
     legal_documents=[
         LegalDocument(
             title="Consulting Agreement",
-            text="This agreement includes indemnify language and IRS reporting obligations.",
+            text="This agreement includes indemnification language and IRS reporting obligations.",
             citations=["26 U.S.C. § 61"],
         )
     ],
