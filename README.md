@@ -123,4 +123,4 @@ print(response.data["algorithms"]["primary_recommendation"])
 
 ## Sample Data
 
-See `/home/runner/work/Jit-/Jit-/examples/sample_case.json` for a ready-to-run payload.
+See `examples/sample_case.json` for a ready-to-run payload.
