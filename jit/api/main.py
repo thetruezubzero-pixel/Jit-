@@ -7,11 +7,18 @@ compliance checking, risk assessment, and optimization.
 
 from __future__ import annotations
 
-import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 
+import uvicorn
+from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+
+from jit.api.middleware import RequestLoggingMiddleware
 from jit.api.routers import accounting, legal, algorithms, health, platform
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(
     title="Jit - Automatic Recursive Algorithmic Accounting & Legal Analysis System",
@@ -37,12 +44,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request logging / timing middleware — runs between the frontend, the
+# reverse-proxy layer, and the routers below.
+app.add_middleware(RequestLoggingMiddleware)
+
 # Include routers
 app.include_router(health.router, prefix="/health", tags=["Health"])
 app.include_router(accounting.router, prefix="/api/v1/accounting", tags=["Accounting"])
 app.include_router(legal.router, prefix="/api/v1/legal", tags=["Legal"])
 app.include_router(algorithms.router, prefix="/api/v1/algorithms", tags=["Algorithms"])
 app.include_router(platform.router, prefix="/api/v1/platform", tags=["Platform"])
+
+# Bundled single-page frontend, served directly by this API.
+app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> RedirectResponse:
+    """Redirect the root path to the bundled frontend."""
+    return RedirectResponse(url="/ui/")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    return Response(status_code=204)
 
 
 def run() -> None:
