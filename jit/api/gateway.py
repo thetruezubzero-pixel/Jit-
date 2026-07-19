@@ -34,8 +34,7 @@ class ApiGateway:
         handler = self._routes[(request.version, request.path)]
         pipeline = handler
         for middleware in reversed(self._middleware):
-            next_handler = pipeline
-            pipeline = lambda req, mw=middleware, nxt=next_handler: mw(req, nxt)
+            pipeline = self._wrap_middleware(middleware, pipeline)
         payload = pipeline(request)
         return {
             "status": "ok",
@@ -44,3 +43,10 @@ class ApiGateway:
             "data": payload,
             "errors": [],
         }
+
+    @staticmethod
+    def _wrap_middleware(middleware: Middleware, next_handler: Handler) -> Handler:
+        def wrapped(request: Request) -> dict[str, Any]:
+            return middleware(request, next_handler)
+
+        return wrapped

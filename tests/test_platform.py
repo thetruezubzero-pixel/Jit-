@@ -27,7 +27,7 @@ def build_context() -> AnalysisContext:
         legal_documents=[
             LegalDocument(
                 title="Services Contract",
-                text="The contract includes indemnify language and IRS reporting duties.",
+                text="The contract includes indemnification language and IRS reporting duties.",
                 citations=["26 U.S.C. § 61"],
             )
         ],
