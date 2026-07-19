@@ -1,3 +1,11 @@
+Metadata-Version: 2.4
+Name: jit-platform
+Version: 0.1.0
+Summary: Upgradeable accounting and legal analysis scaffold
+Author: GitHub Copilot
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+
 # Jit - Automatic Recursive Algorithmic Accounting & Legal Analysis System
 
 Jit is a Python scaffold for a modular accounting, legal analysis, and recursive recommendation platform. The project is designed around upgradeable components, strong cross-module connectivity, and predictable integration points.

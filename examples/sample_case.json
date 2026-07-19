@@ -1,0 +1,20 @@
+{
+  "case_id": "demo-case",
+  "filing_status": "single",
+  "state": "CA",
+  "incomes": [
+    { "kind": "w2", "amount": 120000, "source": "Employer" },
+    { "kind": "capital_gains", "amount": 4000, "source": "Brokerage" }
+  ],
+  "deductions": [
+    { "name": "mortgage_interest", "amount": 10000, "itemized": true },
+    { "name": "charity", "amount": 4000, "itemized": true }
+  ],
+  "legal_documents": [
+    {
+      "title": "Consulting Agreement",
+      "text": "This agreement includes indemnify language and IRS reporting obligations.",
+      "citations": ["26 U.S.C. § 61"]
+    }
+  ]
+}
