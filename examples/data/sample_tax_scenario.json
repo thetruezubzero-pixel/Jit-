@@ -1,0 +1,28 @@
+{
+  "description": "Sample tax scenario for testing — not real tax advice",
+  "taxpayer": {
+    "filing_status": "single",
+    "age": 35,
+    "state": "CA"
+  },
+  "income": {
+    "w2_wages": 120000,
+    "self_employment": 15000,
+    "qualified_dividends": 3000,
+    "long_term_capital_gains": 7000
+  },
+  "withholding": {
+    "federal": 22000,
+    "state": 7000
+  },
+  "deductions": [
+    {"type": "mortgage_interest", "amount": 14000},
+    {"type": "state_local_tax", "amount": 10000},
+    {"type": "charitable_cash", "amount": 3000},
+    {"type": "traditional_ira", "amount": 7000}
+  ],
+  "prior_year": {
+    "tax": 18000,
+    "agi": 125000
+  }
+}
