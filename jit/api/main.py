@@ -11,7 +11,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from jit.api.routers import accounting, legal, algorithms, health
+from jit.api.routers import accounting, legal, algorithms, health, platform
 
 app = FastAPI(
     title="Jit - Automatic Recursive Algorithmic Accounting & Legal Analysis System",
@@ -42,6 +42,7 @@ app.include_router(health.router, prefix="/health", tags=["Health"])
 app.include_router(accounting.router, prefix="/api/v1/accounting", tags=["Accounting"])
 app.include_router(legal.router, prefix="/api/v1/legal", tags=["Legal"])
 app.include_router(algorithms.router, prefix="/api/v1/algorithms", tags=["Algorithms"])
+app.include_router(platform.router, prefix="/api/v1/platform", tags=["Platform"])
 
 
 def run() -> None:

@@ -109,3 +109,6 @@ jobs:
 
       - name: Run full analysis example
         run: python examples/full_analysis.py
+
+      - name: Run platform orchestration example
+        run: python examples/platform_demo.py

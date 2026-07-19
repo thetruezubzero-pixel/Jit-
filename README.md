@@ -65,6 +65,22 @@ decision-making, and risk assessment.
 - Async SQLAlchemy database layer (SQLite/PostgreSQL)
 - Health check, versioned endpoints
 
+### Platform Orchestration
+- **Core contracts** (`jit/core/`) — shared `AnalysisContext`/`ModuleResult` models,
+  versioned feature config, a service registry, a generic plugin registry, and an
+  observer-style event bus for cross-module communication
+- **`JitPlatform`** — a single orchestration entry point that runs a case through
+  accounting → legal → algorithms in sequence, feeding each module's output into the
+  next, and records an audit trail of every stage
+- **Pluggable engines** — `AccountingEngine`, `LegalAnalysisEngine`, and
+  `AlgorithmEngine` wrap the real tax/legal/algorithm modules above behind swappable
+  interfaces (`TaxCalculatorPlugin`, `LegalAnalyzerPlugin`, `RecommendationStrategy`),
+  so a calculator, analyzer, or strategy can be registered and swapped in at runtime
+  without touching the orchestrator
+- **Versioned API gateway** (`jit/api/gateway.py`) — a lightweight, middleware-aware
+  request pipeline used internally by `JitPlatform`, exposed over REST at
+  `/api/v1/platform/analyze`
+
 ---
 
 ## Project Structure
@@ -86,11 +102,21 @@ Jit-/
 │   ├── algorithms/              # Recursive decision engines
 │   │   ├── decision_tree.py     # Decision tree framework
 │   │   ├── optimizer.py         # Tax optimization strategies
-│   │   └── risk_assessor.py     # Audit/risk assessment
+│   │   ├── risk_assessor.py     # Audit/risk assessment
+│   │   ├── base.py              # RecommendationStrategy plugin interface
+│   │   └── engine.py            # AlgorithmEngine (pluggable, real-data-backed)
+│   ├── core/                    # Cross-module platform contracts
+│   │   ├── models.py            # AnalysisContext, ModuleResult, SystemResponse, ...
+│   │   ├── config.py            # AppConfig (versions, feature flags, rules)
+│   │   ├── services.py          # ServiceRegistry
+│   │   ├── plugins.py           # PluginRegistry
+│   │   └── events.py            # EventBus
+│   ├── platform.py              # JitPlatform orchestrator
 │   ├── api/                     # REST API
 │   │   ├── main.py              # FastAPI application
 │   │   ├── models.py            # Pydantic request/response models
-│   │   └── routers/             # Route handlers
+│   │   ├── gateway.py           # Versioned, middleware-aware request pipeline
+│   │   └── routers/             # Route handlers (incl. platform.py)
 │   ├── database/                # Data persistence
 │   │   ├── models.py            # SQLAlchemy ORM models
 │   │   └── session.py           # Async session management
@@ -100,9 +126,12 @@ Jit-/
 │   ├── accounting/              # Accounting unit tests
 │   ├── legal/                   # Legal analysis tests
 │   ├── algorithms/              # Algorithm tests
-│   └── api/                     # API integration tests
+│   ├── api/                     # API integration tests
+│   └── test_platform.py         # JitPlatform / cross-module orchestration tests
 ├── examples/                    # Usage examples
-│   ├── full_analysis.py         # End-to-end example
+│   ├── full_analysis.py         # End-to-end example (direct module calls)
+│   ├── platform_demo.py         # End-to-end example via JitPlatform orchestration
+│   ├── sample_case.json         # Sample AnalysisContext payload
 │   └── data/                    # Sample data files
 ├── .github/workflows/ci.yml     # GitHub Actions CI/CD
 ├── requirements.txt
@@ -138,10 +167,14 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-### Run the Example
+### Run the Examples
 
 ```bash
+# Direct module calls (tax calculation, deductions, AMT, compliance, etc.)
 python examples/full_analysis.py
+
+# Cross-module orchestration through JitPlatform (accounting -> legal -> algorithms)
+python examples/platform_demo.py
 ```
 
 ### Start the API Server
@@ -224,6 +257,38 @@ for issue in result.issues:
     print(f"  [{issue.risk_level.value}] {issue.title}")
 ```
 
+### JitPlatform (Cross-Module Orchestration)
+
+```python
+from jit.core.models import AnalysisContext, IncomeRecord, DeductionRecord
+from jit.platform import JitPlatform
+
+platform = JitPlatform()
+response = platform.analyze_case(
+    AnalysisContext(
+        case_id="demo-case",
+        filing_status="single",
+        state="CA",
+        incomes=[IncomeRecord(kind="w2", amount=120_000)],
+        deductions=[DeductionRecord(name="charity", amount=4_000)],
+    )
+)
+
+print(response.data["accounting"]["total_tax"])
+print(response.data["legal"]["risk_score"])
+print(response.data["algorithms"]["primary_recommendation"])
+print([event.topic for event in response.audit_trail])
+# → ['accounting.completed', 'legal.completed', 'algorithms.completed']
+```
+
+Calculators, analyzers, and strategies can be swapped at runtime without touching the
+orchestrator:
+
+```python
+platform.accounting.register_calculator("my_calculator", MyCalculator)
+platform.accounting.use_calculator("my_calculator")
+```
+
 ---
 
 ## API Reference
@@ -247,6 +312,7 @@ http://localhost:8000/api/v1
 | POST | `/algorithms/filing-status` | Recommend filing status |
 | POST | `/algorithms/optimize` | Tax optimization strategies |
 | POST | `/algorithms/risk/assess` | Audit risk assessment |
+| POST | `/platform/analyze` | Run a case through the full accounting → legal → algorithms pipeline |
 
 Full interactive documentation is available at `/docs` (Swagger UI) and `/redoc`.
 
