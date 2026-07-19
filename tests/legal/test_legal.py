@@ -143,7 +143,7 @@ class TestStatuteParser:
         """Defined terms should be extracted from statute text."""
         parser = StatuteParser()
         section = parser.parse_usc_section("26", "61", SAMPLE_STATUTE_TEXT)
-        assert "Gross income" in section.definitions or len(section.definitions) >= 0
+        assert "Gross income" in section.definitions
 
     def test_keyword_extraction(self):
         """Tax-relevant keywords should be identified."""

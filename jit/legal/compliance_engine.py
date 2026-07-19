@@ -201,30 +201,29 @@ class ComplianceEngine:
         if has_foreign_accounts:
             areas.append(ComplianceArea.FBAR)
             if aggregate_foreign_balance > FBAR_THRESHOLD:
-                if aggregate_foreign_balance > FBAR_THRESHOLD:
-                    issues.append(
-                        ComplianceIssue(
-                            issue_id="fbar_001",
-                            area=ComplianceArea.FBAR,
-                            risk_level=RiskLevel.HIGH,
-                            title="FBAR Filing Required",
-                            description=(
-                                f"Aggregate foreign account balance (${aggregate_foreign_balance:,.0f}) "
-                                f"exceeds FBAR threshold (${FBAR_THRESHOLD:,.0f}). "
-                                "FinCEN Form 114 must be filed by April 15."
-                            ),
-                            regulatory_basis="31 U.S.C. § 5314; 31 C.F.R. § 1010.350",
-                            recommended_action=(
-                                "File FinCEN Form 114 electronically at bsaefiling.fincen.treas.gov "
-                                "by April 15 (automatic extension to October 15)."
-                            ),
-                            deadline="April 15 (auto-extended to October 15)",
-                            penalty_range=(
-                                f"Non-willful: up to ${FBAR_NON_WILLFUL_MAX:,}/year; "
-                                f"Willful: up to ${FBAR_WILLFUL_MAX:,}/year or 50% of account value"
-                            ),
-                        )
+                issues.append(
+                    ComplianceIssue(
+                        issue_id="fbar_001",
+                        area=ComplianceArea.FBAR,
+                        risk_level=RiskLevel.HIGH,
+                        title="FBAR Filing Required",
+                        description=(
+                            f"Aggregate foreign account balance (${aggregate_foreign_balance:,.0f}) "
+                            f"exceeds FBAR threshold (${FBAR_THRESHOLD:,.0f}). "
+                            "FinCEN Form 114 must be filed by April 15."
+                        ),
+                        regulatory_basis="31 U.S.C. § 5314; 31 C.F.R. § 1010.350",
+                        recommended_action=(
+                            "File FinCEN Form 114 electronically at bsaefiling.fincen.treas.gov "
+                            "by April 15 (automatic extension to October 15)."
+                        ),
+                        deadline="April 15 (auto-extended to October 15)",
+                        penalty_range=(
+                            f"Non-willful: up to ${FBAR_NON_WILLFUL_MAX:,}/year; "
+                            f"Willful: up to ${FBAR_WILLFUL_MAX:,}/year or 50% of account value"
+                        ),
                     )
+                )
             else:
                 passed.append("FBAR: Foreign account balance below reporting threshold")
 

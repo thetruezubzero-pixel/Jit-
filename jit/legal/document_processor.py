@@ -99,7 +99,7 @@ class LegalDocument:
 
 # Common legal citation patterns
 _CASE_CITATION_PATTERN = re.compile(
-    r"\b(\d+)\s+([A-Z][A-Za-z\.\s]+)\s+(\d+)(?:\s*\((\d{4})\))?"
+    r"\b(\d+)\s+([A-Z][A-Za-z\.]+(?:[ \t]+[A-Za-z\.]+)*)\s+(\d+)(?:\s*\((\d{4})\))?"
 )
 _STATUTE_CITATION_PATTERN = re.compile(
     r"\b(\d+)\s+U\.?S\.?C\.?\s+(?:§+|sec\.?)\s*(\d+[a-z]?(?:-\d+[a-z]?)?)"
@@ -260,7 +260,7 @@ class DocumentProcessor:
 
         # Split on numbered sections or headings
         section_pattern = re.compile(
-            r"(?:^|\n)(?:SECTION|Section|SEC\.|§)\s*(\d+(?:\.\d+)*)[.\s]*(.*?)(?=\n(?:SECTION|Section|SEC\.|§)\s*\d|\Z)",
+            r"(?:^|\n)(?:SECTION|Section|SEC\.|§)\s*(\d+(?:\.\d+)*)[ \t]*(.*?)(?=\n(?:SECTION|Section|SEC\.|§)\s*\d|\Z)",
             re.DOTALL | re.IGNORECASE,
         )
 
