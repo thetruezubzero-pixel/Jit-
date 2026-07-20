@@ -418,7 +418,14 @@ const PRO_LICENSE_KEY_STORAGE = "jit_pro_license_key";
 const GUMROAD_PRODUCT_PERMALINK = "REPLACE_WITH_YOUR_GUMROAD_PERMALINK";
 const isProConfigured = () => GUMROAD_PRODUCT_PERMALINK !== "REPLACE_WITH_YOUR_GUMROAD_PERMALINK";
 
-const isProUnlocked = () => localStorage.getItem(PRO_UNLOCKED_STORAGE) === "1";
+// Flip to false once Jit Pro is actually for sale (a real Gumroad product
+// is set up above) — until then, every Pro feature is unlocked for
+// everyone by default rather than gating something nobody can yet pay
+// for. The licensing UI/verification below stays fully wired up either
+// way, so flipping this back on is the only step needed at launch.
+const PRO_FREE_FOR_NOW = true;
+
+const isProUnlocked = () => PRO_FREE_FOR_NOW || localStorage.getItem(PRO_UNLOCKED_STORAGE) === "1";
 
 async function verifyGumroadLicense(licenseKey) {
   const response = await fetch("https://api.gumroad.com/v2/licenses/verify", {
@@ -446,7 +453,11 @@ if (proKeyInput) {
 function renderProStatus() {
   if (exportPdfBtn) exportPdfBtn.disabled = !isProUnlocked();
   if (!proStatusEl) return;
-  proStatusEl.textContent = isProUnlocked() ? "✓ Jit Pro is active on this device." : "";
+  if (PRO_FREE_FOR_NOW) {
+    proStatusEl.textContent = "✓ All Jit Pro features are free for everyone for now — no license needed.";
+  } else {
+    proStatusEl.textContent = isProUnlocked() ? "✓ Jit Pro is active on this device." : "";
+  }
 }
 
 if (proActivateBtn) {
