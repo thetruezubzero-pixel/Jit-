@@ -75,7 +75,12 @@ def test_capital_loss_short_term(processor):
 
 
 def test_social_security_taxability(processor):
-    """Social security benefits should be partially taxable."""
+    """Social security benefits should be partially taxable, matching the
+    IRC §86 provisional-income worksheet exactly, not just some plausible
+    range. A loose bound here (e.g. "somewhere between $0 and the max")
+    would have silently passed even when a sign error zeroed out taxable
+    SS entirely -- see test_provisional_income_adds_half_of_ss_not_subtracts
+    for the regression this exact scenario caught."""
     processor.add_record(
         IncomeRecord(
             income_type=IncomeType.SOCIAL_SECURITY,
@@ -93,8 +98,46 @@ def test_social_security_taxability(processor):
         )
     )
     summary = processor.process(2024)
-    # Some portion of SS should be taxable
-    assert 0 <= summary.total_taxable_ss <= 20_000 * 0.85
+    # Provisional income = $30,000 + 50% * $20,000 = $40,000, which is
+    # above the $34,000 upper threshold (single filer), so:
+    # taxable = min(4,500 + 85% * (40,000 - 34,000), 85% * 20,000)
+    #         = min(4,500 + 5,100, 17,000) = min(9,600, 17,000) = 9,600
+    # This is the worked example from IRS Publication 915.
+    assert summary.total_taxable_ss == 9_600.0
+
+
+def test_provisional_income_adds_half_of_ss_not_subtracts(processor):
+    # Regression: provisional income was computed as
+    # `gross_income - total_social_security + 0.5*SS`, but gross_income
+    # already excludes the SS benefit at the point this runs (it sums
+    # total_taxable_ss, which is still 0.0 during this calculation, not
+    # total_social_security) -- so the extra subtraction double-counted
+    # the exclusion, understating provisional income by a full SS benefit.
+    # For a large enough non-SS income relative to a small SS benefit, the
+    # bug drove provisional income below the $25,000 floor and reported
+    # $0 taxable SS when a real, non-zero amount was owed.
+    processor.add_record(
+        IncomeRecord(
+            income_type=IncomeType.SOCIAL_SECURITY,
+            amount=10_000,
+            source="SSA",
+            tax_year=2024,
+        )
+    )
+    processor.add_record(
+        IncomeRecord(
+            income_type=IncomeType.W2_WAGES,
+            amount=28_000,
+            source="Employer",
+            tax_year=2024,
+        )
+    )
+    summary = processor.process(2024)
+    # Correct provisional income = 28,000 + 0.5*10,000 = 33,000 (between
+    # $25,000 and $34,000, so some SS is taxable).
+    # Buggy provisional income = 28,000 - 10,000 + 0.5*10,000 = 23,000
+    # (below $25,000, so the bug reports $0 -- silently wrong).
+    assert summary.total_taxable_ss > 0
 
 
 def test_gross_income_aggregation(processor):

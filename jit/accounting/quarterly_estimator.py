@@ -131,10 +131,15 @@ class QuarterlyEstimator:
             cumulative_required = net_required * pct
             quarter_payment = cumulative_required - cumulative_paid
 
-            # Underpayment/overpayment relative to what was required through the
-            # prior quarter, computed before cumulative_paid advances below —
-            # this must happen first, or both sides of the comparison are equal
-            # and these are trivially always zero.
+            # underpayment/overpayment/is_safe_harbor_met deliberately assume
+            # no estimated payments have actually been made yet beyond
+            # withholding — a conservative "if you do nothing further from
+            # here, you're behind by this much" planning signal, not a
+            # tracker of payments the filer has actually made (there's no
+            # input for that). This must be computed before cumulative_paid
+            # advances to this quarter's cumulative_required below, or both
+            # sides of the comparison become equal and these are trivially
+            # always zero regardless of any real shortfall.
             underpayment = max(0.0, cumulative_required - cumulative_paid)
             overpayment = max(0.0, cumulative_paid - cumulative_required) if q > 1 else 0.0
 

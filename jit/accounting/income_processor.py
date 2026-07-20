@@ -380,12 +380,14 @@ class IncomeProcessor:
         if summary.total_social_security == 0:
             return 0.0
 
-        # Provisional income = AGI + tax-exempt interest + 50% SS
-        provisional = (
-            summary.gross_income
-            - summary.total_social_security
-            + (summary.total_social_security * 0.5)
-        )
+        # Provisional income = AGI (excluding SS) + tax-exempt interest + 50% SS.
+        # summary.gross_income already excludes the SS benefit at this point in
+        # the pipeline -- it sums total_taxable_ss, not total_social_security,
+        # and total_taxable_ss is still 0.0 here (this method computes it). The
+        # previous version additionally subtracted total_social_security, which
+        # double-counted the exclusion and understated provisional income by a
+        # full SS benefit -- often driving taxable SS to $0 when it shouldn't be.
+        provisional = summary.gross_income + (summary.total_social_security * 0.5)
 
         if provisional < 25_000:
             return 0.0

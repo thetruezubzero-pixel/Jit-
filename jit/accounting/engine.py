@@ -85,7 +85,12 @@ class RealTaxCalculator(TaxCalculatorPlugin):
 
         amt = AMTCalculator(tax_year=tax_year).calculate(
             regular_taxable_income=result.taxable_income,
-            regular_tax=result.total_federal_tax,
+            # AMT is compared against regular *income* tax only — not
+            # result.total_federal_tax, which also folds in Social
+            # Security/Medicare/Additional Medicare tax, NIIT, and SE tax.
+            # Feeding that inflated total in as "regular_tax" systematically
+            # understated AMT owed for anyone with payroll or SE income.
+            regular_tax=result.federal_income_tax + result.long_term_capital_gains_tax,
             filing_status=filing_status,
             salt_deduction_claimed=min(itemized_deductions, _SALT_CAP),
             standard_deduction_claimed=0.0,
