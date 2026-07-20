@@ -41,8 +41,13 @@ class RealLegalAnalyzer(LegalAnalyzerPlugin):
             gross_income=accounting.data["gross_income"],
             tax_year=2024,
             filing_status_str=context.filing_status,
-            taxes_withheld=0.0,
-            taxes_paid=0.0,
+            # AnalysisContext has no field for withholding/estimated payments
+            # already made, so this is genuinely unknown here -- passing None
+            # (not 0.0) makes the compliance engine skip the underpayment
+            # check instead of treating "unknown" as "definitely $0," which
+            # used to flag every sufficiently high income as underpaid.
+            taxes_withheld=None,
+            taxes_paid=None,
             self_employment_income=accounting.data.get("self_employment_income", 0.0),
         )
 

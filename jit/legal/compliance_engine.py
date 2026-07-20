@@ -126,8 +126,8 @@ class ComplianceEngine:
         gross_income: float,
         tax_year: int,
         filing_status_str: str,
-        taxes_withheld: float,
-        taxes_paid: float,
+        taxes_withheld: Optional[float],
+        taxes_paid: Optional[float],
         has_foreign_accounts: bool = False,
         max_foreign_account_balance: float = 0.0,
         aggregate_foreign_balance: float = 0.0,
@@ -144,8 +144,12 @@ class ComplianceEngine:
             gross_income: Total gross income.
             tax_year: Tax year being checked.
             filing_status_str: Filing status string.
-            taxes_withheld: Federal taxes already withheld.
-            taxes_paid: Estimated taxes already paid.
+            taxes_withheld: Federal taxes already withheld, or None if unknown
+                (the underpayment check is skipped rather than treating
+                unknown as $0, which would falsely flag every sufficiently
+                high income as underpaid).
+            taxes_paid: Estimated taxes already paid, or None if unknown
+                (same handling as taxes_withheld).
             has_foreign_accounts: Whether taxpayer has foreign financial accounts.
             max_foreign_account_balance: Highest balance in any single foreign account.
             aggregate_foreign_balance: Sum of all foreign account balances.
@@ -172,30 +176,42 @@ class ComplianceEngine:
             )
 
         # --- Estimated tax / underpayment check ---
-        total_paid = taxes_withheld + taxes_paid
-        min_required = gross_income * 0.15  # Very rough proxy
-        if total_paid < min_required and gross_income > 1_000:
-            issues.append(
-                ComplianceIssue(
-                    issue_id="underpayment_001",
-                    area=ComplianceArea.FEDERAL_TAX,
-                    risk_level=RiskLevel.MEDIUM,
-                    title="Potential Underpayment of Estimated Taxes",
-                    description=(
-                        f"Total taxes paid (${total_paid:,.0f}) may be insufficient. "
-                        "IRS requires paying at least 90% of current year tax or "
-                        "100%/110% of prior year tax."
-                    ),
-                    regulatory_basis="IRC § 6654; IRS Form 2210",
-                    recommended_action=(
-                        "Calculate estimated tax using Form 1040-ES and pay any shortfall. "
-                        "Increase W-4 withholding if possible."
-                    ),
-                    penalty_range="0.5% per month on underpaid amount",
-                )
+        # Only run this when withholding/payments are actually known. Some
+        # callers (the cross-module platform.py pipeline, which has no
+        # source for this data) used to pass 0.0 as a stand-in for "unknown"
+        # -- indistinguishable from a real $0, which meant every case with
+        # gross income above ~$6,667 (min_required > $1,000) was
+        # unconditionally flagged as underpaid, regardless of what was
+        # actually withheld.
+        if taxes_withheld is None or taxes_paid is None:
+            passed.append(
+                "Estimated tax payment status not checked (withholding/payments not provided)"
             )
         else:
-            passed.append("Estimated tax payments appear adequate")
+            total_paid = taxes_withheld + taxes_paid
+            min_required = gross_income * 0.15  # Very rough proxy
+            if total_paid < min_required and gross_income > 1_000:
+                issues.append(
+                    ComplianceIssue(
+                        issue_id="underpayment_001",
+                        area=ComplianceArea.FEDERAL_TAX,
+                        risk_level=RiskLevel.MEDIUM,
+                        title="Potential Underpayment of Estimated Taxes",
+                        description=(
+                            f"Total taxes paid (${total_paid:,.0f}) may be insufficient. "
+                            "IRS requires paying at least 90% of current year tax or "
+                            "100%/110% of prior year tax."
+                        ),
+                        regulatory_basis="IRC § 6654; IRS Form 2210",
+                        recommended_action=(
+                            "Calculate estimated tax using Form 1040-ES and pay any shortfall. "
+                            "Increase W-4 withholding if possible."
+                        ),
+                        penalty_range="0.5% per month on underpaid amount",
+                    )
+                )
+            else:
+                passed.append("Estimated tax payments appear adequate")
 
         # --- FBAR check ---
         if has_foreign_accounts:

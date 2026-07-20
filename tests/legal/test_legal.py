@@ -9,6 +9,8 @@ from jit.legal.document_processor import (
 from jit.legal.statute_parser import StatuteParser, CodeType
 from jit.legal.case_analyzer import CaseAnalyzer, CourtLevel
 from jit.legal.compliance_engine import ComplianceEngine, RiskLevel
+from jit.legal.engine import RealLegalAnalyzer
+from jit.core.models import AnalysisContext, IncomeRecord, ModuleResult
 
 # -----------------------------------------------------------------------
 # DocumentProcessor tests
@@ -246,6 +248,38 @@ class TestComplianceEngine:
         )
         assert result.is_compliant
 
+    def test_unknown_withholding_skips_underpayment_check_instead_of_assuming_zero(self):
+        # Regression: taxes_withheld/taxes_paid used to be required floats,
+        # so a caller with no way to know them (platform.py's cross-module
+        # pipeline) passed 0.0 as a stand-in for "unknown" -- indistinguishable
+        # from a real $0, which meant every sufficiently high income got
+        # flagged as underpaid regardless of actual withholding. None must
+        # skip the check rather than assume the worst case.
+        engine = ComplianceEngine()
+        result = engine.check_individual_tax_compliance(
+            gross_income=200_000,
+            tax_year=2024,
+            filing_status_str="single",
+            taxes_withheld=None,
+            taxes_paid=None,
+        )
+        underpayment_issues = [i for i in result.issues if i.issue_id == "underpayment_001"]
+        assert underpayment_issues == []
+        assert any("not checked" in p for p in result.passed_checks)
+
+    def test_genuinely_zero_withholding_still_flags_underpayment(self):
+        # The fix above must not silently suppress a real, known $0.
+        engine = ComplianceEngine()
+        result = engine.check_individual_tax_compliance(
+            gross_income=200_000,
+            tax_year=2024,
+            filing_status_str="single",
+            taxes_withheld=0.0,
+            taxes_paid=0.0,
+        )
+        underpayment_issues = [i for i in result.issues if i.issue_id == "underpayment_001"]
+        assert len(underpayment_issues) == 1
+
     def test_fbar_triggered(self):
         """FBAR issue should be triggered when foreign balance exceeds $10k."""
         engine = ComplianceEngine()
@@ -314,3 +348,33 @@ class TestComplianceEngine:
             issued_1099s_filed=0,
         )
         assert risky.compliance_score < clean.compliance_score
+
+
+# -----------------------------------------------------------------------
+# RealLegalAnalyzer tests (the platform.py cross-module orchestration path)
+# -----------------------------------------------------------------------
+
+
+class TestRealLegalAnalyzer:
+    def test_high_income_with_no_withholding_data_is_not_flagged_as_underpaid(self):
+        # Regression: AnalysisContext has no field for withholding or
+        # estimated payments already made, so RealLegalAnalyzer used to pass
+        # 0.0 for both to check_individual_tax_compliance -- indistinguishable
+        # from a real $0, which meant every case routed through platform.py
+        # with meaningful income got an unconditional false "Potential
+        # Underpayment of Estimated Taxes" finding.
+        analyzer = RealLegalAnalyzer()
+        context = AnalysisContext(
+            case_id="test",
+            filing_status="single",
+            state="CA",
+            incomes=[IncomeRecord(kind="w2", amount=200_000, source="employer")],
+        )
+        accounting = ModuleResult(
+            module="accounting",
+            version="v1",
+            data={"gross_income": 200_000, "total_tax": 45_000},
+        )
+        result = analyzer.analyze(context, accounting)
+        assert result["compliance_issues"] == []
+        assert result["compliance_status"] == "clear"
