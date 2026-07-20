@@ -83,6 +83,39 @@ form {
   padding: 1rem;
 }
 
+.chat-log { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+.chat-log:empty { display: none; }
+.chat-msg {
+  max-width: 85%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.chat-msg.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-bottom-right-radius: 3px;
+}
+.chat-msg.assistant {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 3px;
+}
+.chat-msg.assistant .intent-tag {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.3rem;
+}
+#chat-form { display: flex; gap: 0.6rem; align-items: flex-end; }
+#chat-form textarea { flex: 1; }
+#chat-form button { flex: 0 0 auto; margin-top: 0; }
+
 .subblock { margin: 1rem 0; }
 .subblock h3 { font-size: 0.9rem; color: var(--muted); margin: 0 0 0.5rem; text-transform: uppercase; letter-spacing: 0.03em; }
 

@@ -248,7 +248,295 @@ def platform_analyze(payload: dict) -> dict:
     }
 
 
+def _extract_amount(text: str) -> float | None:
+    """Pull the dollar figure out of free text, handling '150k'/'1.2m'/'$1,234,567'.
+
+    Text like "1099 income of 200k" contains multiple bare numbers where only
+    one is actually a dollar amount, so this scores every candidate — a '$'
+    prefix, comma grouping, or k/m suffix are strong signals of an intended
+    amount — rather than just taking the first number in the string (which
+    would grab '1099' as if it were a dollar figure, not a form number).
+    """
+    import re
+
+    best_value = None
+    best_score = -1
+    for match in re.finditer(r"\$?\s*(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?", text):
+        raw, suffix = match.group(1), (match.group(2) or "").lower()
+        number = float(raw.replace(",", ""))
+        if suffix == "k":
+            number *= 1_000
+        elif suffix == "m":
+            number *= 1_000_000
+
+        score = 0
+        if text[match.start()] == "$" or (match.start() > 0 and text[match.start() - 1] == "$"):
+            score += 2
+        if "," in raw:
+            score += 1
+        if suffix:
+            score += 2
+
+        if score > best_score or (
+            score == best_score and (best_value is None or number > best_value)
+        ):
+            best_score = score
+            best_value = number
+
+    return best_value
+
+
+def _extract_filing_status(text: str) -> str:
+    lowered = text.lower()
+    if "surviving spouse" in lowered or "widow" in lowered:
+        return "qualifying_surviving_spouse"
+    if "married" in lowered and ("separat" in lowered):
+        return "married_filing_separately"
+    if "married" in lowered or "joint" in lowered:
+        return "married_filing_jointly"
+    if "head of household" in lowered or " hoh" in lowered:
+        return "head_of_household"
+    return "single"
+
+
+_STATE_NAMES = {
+    "california": "CA",
+    "new york": "NY",
+    "texas": "TX",
+    "florida": "FL",
+    "washington": "WA",
+    "massachusetts": "MA",
+    "illinois": "IL",
+}
+
+
+def _extract_state(text: str) -> str:
+    lowered = text.lower()
+    for name, code in _STATE_NAMES.items():
+        if name in lowered:
+            return code
+    import re
+
+    match = re.search(r"\bin ([A-Z]{2})\b", text)
+    return match.group(1) if match else "CA"
+
+
+def _has_any(text: str, *keywords: str) -> bool:
+    lowered = text.lower()
+    return any(kw in lowered for kw in keywords)
+
+
+_INTENT_KEYWORDS = {
+    "amt_calculate": ("amt", "alternative minimum tax"),
+    "quarterly_estimate": ("quarterly", "estimated payment", "estimated tax payment"),
+    "compliance_check": ("compliance", "fbar", "fatca", "foreign account", "1099 filing"),
+    "document_analyze": ("contract", "clause", "document", "agreement", "indemnif"),
+    "filing_status_tree": ("filing status", "should i file", "file as single", "file jointly"),
+    "deduction_optimize": ("deduction", "itemize", "itemized", "standard deduction"),
+    "risk_assess": ("audit risk", "audit probability", "get audited", "irs audit"),
+    "algorithm_optimize": (
+        "save on tax",
+        "tax strategy",
+        "tax strategies",
+        "reduce my tax",
+        "optimize",
+    ),
+    "tax_calculate": ("tax", "calculate", "how much tax", "owe"),
+    "platform_analyze": ("full analysis", "everything", "complete case", "full case", "overall"),
+}
+
+
+def _classify_intent(text: str) -> str:
+    lowered = text.lower()
+    scores = {
+        intent: sum(1 for kw in keywords if kw in lowered)
+        for intent, keywords in _INTENT_KEYWORDS.items()
+    }
+    best_intent = max(scores, key=scores.get)
+    if scores[best_intent] == 0:
+        return "platform_analyze"
+    return best_intent
+
+
+def chat(payload: dict) -> dict:
+    """Route a free-text message to the right engine(s) and reply in one place.
+
+    This is plain keyword/regex matching, not a language model — it stays
+    within "no paid API, GitHub Pages only." It reuses the exact same
+    handlers as every other tab, just chosen from the message text instead
+    of a form.
+    """
+    message = payload.get("message", "")
+    amount = _extract_amount(message) or 120_000.0
+    filing_status = _extract_filing_status(message)
+    state = _extract_state(message)
+    self_employed = _has_any(
+        message, "self employ", "self-employ", "1099", "schedule c", "freelance"
+    )
+    business_owner = _has_any(
+        message, "business owner", "own a business", "my business", "llc", "s-corp"
+    )
+
+    intent = _classify_intent(message)
+
+    if intent == "tax_calculate":
+        result = tax_calculate(
+            {
+                "gross_income": amount,
+                "filing_status": filing_status,
+                "state_code": state,
+                "w2_wages": 0.0 if self_employed else amount,
+                "self_employment_income": amount if self_employed else 0.0,
+            }
+        )
+        reply = (
+            f"On ${amount:,.0f} of income filing {filing_status.replace('_', ' ')} in {state}, "
+            f"your estimated total tax is ${result['total_tax']:,.2f} "
+            f"(effective rate {result['effective_total_rate']:.1%})."
+        )
+    elif intent == "amt_calculate":
+        result = amt_calculate(
+            {
+                "regular_taxable_income": amount,
+                "regular_tax": amount * 0.22,
+                "filing_status": filing_status,
+            }
+        )
+        reply = (
+            f"On ${amount:,.0f} of taxable income, you are "
+            f"{'likely' if result['is_subject_to_amt'] else 'not likely'} subject to AMT "
+            f"(AMT owed: ${result['amt_owed']:,.2f})."
+        )
+    elif intent == "quarterly_estimate":
+        result = quarterly_estimate(
+            {
+                "expected_total_tax": amount * 0.24,
+                "prior_year_tax": amount * 0.24,
+                "prior_year_agi": amount,
+                "filing_status": filing_status,
+            }
+        )
+        reply = (
+            f"Based on an estimated ${amount * 0.24:,.0f} annual tax, your quarterly "
+            f"payment should be about ${result['total_required'] / 4:,.2f}."
+        )
+    elif intent == "compliance_check":
+        result = compliance_check(
+            {
+                "gross_income": amount,
+                "filing_status": filing_status,
+                "taxes_withheld": amount * 0.15,
+                "taxes_paid": 0.0,
+                "has_foreign_accounts": _has_any(message, "foreign account", "fbar", "fatca"),
+                "aggregate_foreign_balance": 15_000.0 if _has_any(message, "foreign") else 0.0,
+                "self_employment_income": amount if self_employed else 0.0,
+            }
+        )
+        reply = (
+            f"Compliance check: overall risk is {result['overall_risk']}, "
+            f"compliance score {result['compliance_score']:.2f}. {result['summary']}"
+        )
+    elif intent == "document_analyze":
+        result = document_analyze({"text": message, "title": "Chat-submitted text"})
+        reply = (
+            f"Risk score {result['risk_score']:.2f}, found {len(result['citations'])} citation(s) "
+            f"and {len(result['risk_flags'])} risk flag(s)."
+        )
+    elif intent == "filing_status_tree":
+        result = filing_status_tree(
+            {
+                "is_married": _has_any(message, "married"),
+                "has_qualifying_dependent": _has_any(message, "dependent", "child", "kids"),
+                "is_qualifying_surviving_spouse": _has_any(message, "widow", "surviving spouse"),
+                "prefer_filing_separately": _has_any(message, "separately"),
+            }
+        )
+        reply = result["recommendation"]
+    elif intent == "deduction_optimize":
+        result = deduction_optimize(
+            {
+                "agi": amount,
+                "filing_status": filing_status,
+                "deductions": [
+                    {"deduction_type": "mortgage_interest", "amount": amount * 0.08},
+                    {"deduction_type": "charitable_cash", "amount": amount * 0.03},
+                ],
+            }
+        )
+        reply = (
+            f"On ${amount:,.0f} AGI, {result['recommended_method']} deduction is better "
+            f"(${result['recommended_deduction']:,.0f})."
+        )
+    elif intent == "risk_assess":
+        result = risk_assess(
+            {
+                "agi": amount,
+                "has_schedule_c": self_employed,
+                "schedule_c_income": amount if self_employed else 0.0,
+                "has_crypto_transactions": _has_any(message, "crypto", "bitcoin"),
+                "claimed_home_office": _has_any(message, "home office"),
+            }
+        )
+        reply = (
+            f"Your audit risk rating is {result['audit_risk_rating']} "
+            f"(estimated probability {result['estimated_audit_probability']:.2%})."
+        )
+    elif intent == "algorithm_optimize":
+        result = algorithm_optimize(
+            {
+                "gross_income": amount,
+                "current_tax": amount * 0.24,
+                "marginal_rate": 0.24,
+                "filing_status": filing_status,
+                "has_401k_access": not self_employed,
+                "self_employment_income": amount if self_employed else 0.0,
+                "is_business_owner": business_owner,
+                "expected_state_tax": amount * 0.05 if business_owner else 0.0,
+            }
+        )
+        top = result["strategies"][0]["title"] if result["strategies"] else None
+        reply = (
+            f"Top strategy: {top}. Total potential savings: ${result['total_savings']:,.2f}."
+            if top
+            else "No specific optimization strategies applied for this scenario."
+        )
+    else:
+        result = platform_analyze(
+            {
+                "case_id": "chat-case",
+                "filing_status": filing_status,
+                "state": state,
+                "incomes": [
+                    {
+                        "kind": "1099" if self_employed else "w2",
+                        "amount": amount,
+                        "source": "chat",
+                    }
+                ],
+            }
+        )
+        reply = (
+            f"Full case: total tax ${result['accounting']['total_tax']:,.2f}, "
+            f"legal risk score {result['legal']['risk_score']:.2f}, "
+            f"recommendation: {result['algorithms']['primary_recommendation']}."
+        )
+
+    return {
+        "intent": intent,
+        "extracted": {
+            "amount": amount,
+            "filing_status": filing_status,
+            "state": state,
+            "self_employed": self_employed,
+            "business_owner": business_owner,
+        },
+        "reply": reply,
+        "result": result,
+    }
+
+
 _HANDLERS = {
+    "chat": chat,
     "tax_calculate": tax_calculate,
     "deduction_optimize": deduction_optimize,
     "amt_calculate": amt_calculate,

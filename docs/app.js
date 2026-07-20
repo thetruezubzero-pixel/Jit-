@@ -316,7 +316,7 @@ const RENDERERS = {
   `,
   filing_status_tree: (d) => `
     <div class="card"><h3>Filing Status Recommendation</h3>
-      ${kv("Recommendation", d.recommendation, true)}
+      <p style="margin: 0 0 0.6rem;">${d.recommendation}</p>
       ${kv("Confidence", percent(d.confidence))}
     </div>
     <div class="card"><h3>Path Taken</h3><div class="tag-list">${(d.path_taken || []).map((p) => `<span class="tag">${p}</span>`).join("")}</div></div>
@@ -433,3 +433,73 @@ document.querySelectorAll("form[data-module]").forEach((form) => {
     }
   });
 });
+
+// ---------------------------------------------------------------------
+// Chat: one free-text box routed to whichever engine(s) it matches
+// ---------------------------------------------------------------------
+const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-input");
+const chatLog = document.getElementById("chat-log");
+
+function addChatBubble(role, html) {
+  const bubble = document.createElement("div");
+  bubble.className = `chat-msg ${role}`;
+  bubble.innerHTML = html;
+  chatLog.appendChild(bubble);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return bubble;
+}
+
+const INTENT_LABELS = {
+  tax_calculate: "Tax Calculator",
+  deduction_optimize: "Deductions",
+  amt_calculate: "AMT",
+  quarterly_estimate: "Quarterly",
+  document_analyze: "Legal Document",
+  compliance_check: "Compliance",
+  filing_status_tree: "Filing Status",
+  algorithm_optimize: "Optimizer",
+  risk_assess: "Audit Risk",
+  platform_analyze: "Full Case",
+};
+
+if (chatForm) {
+  chatForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    const sendBtn = chatForm.querySelector('button[type="submit"]');
+    sendBtn.disabled = true;
+    addChatBubble("user", message.replace(/</g, "&lt;"));
+    chatInput.value = "";
+
+    try {
+      const dispatch = await bootPromise;
+      const resultJson = dispatch("chat", JSON.stringify({ message }));
+      const response = JSON.parse(resultJson);
+
+      if (!response.success) {
+        addChatBubble("assistant", `<div class="error-box">${response.error}</div>`);
+        return;
+      }
+
+      const { intent, reply, result } = response.data;
+      const label = INTENT_LABELS[intent] || intent;
+      let cardHtml = "";
+      try {
+        cardHtml = (RENDERERS[intent] || renderGeneric)(result);
+      } catch {
+        /* If a specific renderer can't handle this shape, the reply text still stands alone. */
+      }
+      addChatBubble(
+        "assistant",
+        `<span class="intent-tag">Routed to: ${label}</span>${reply}${cardHtml}`
+      );
+    } catch (err) {
+      addChatBubble("assistant", `<div class="error-box">${err.message || err}</div>`);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+}

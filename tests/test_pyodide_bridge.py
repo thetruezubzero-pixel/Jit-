@@ -175,3 +175,85 @@ class TestDispatch:
         response = _run("tax_calculate", {"filing_status": "not_a_real_status"})
         assert response["success"] is False
         assert "error" in response
+
+
+class TestAmountExtraction:
+    def test_plain_number(self):
+        assert bridge._extract_amount("I earn 85000 dollars a year") == 85_000.0
+
+    def test_k_suffix(self):
+        assert bridge._extract_amount("what if I make 150k") == 150_000.0
+
+    def test_m_suffix(self):
+        assert bridge._extract_amount("a 1.2m exit") == 1_200_000.0
+
+    def test_dollar_sign_and_commas(self):
+        assert bridge._extract_amount("$1,234,567 in gross income") == 1_234_567.0
+
+    def test_no_number_returns_none(self):
+        assert bridge._extract_amount("just saying hello") is None
+
+    def test_lone_comma_does_not_crash(self):
+        # Regression: "separately, I am married" — a bare comma must not be
+        # mistaken for a numeric match (it previously raised ValueError
+        # trying to float('') after stripping the comma).
+        assert bridge._extract_amount("separately, I am married with kids") is None
+
+    def test_prefers_dollar_amount_over_form_number(self):
+        # "1099" here is a tax form reference, not a dollar figure — the
+        # actual amount ("200k") must win.
+        assert bridge._extract_amount("1099 income of 200k") == 200_000.0
+
+
+class TestChat:
+    def test_tax_question_routes_to_tax_calculate(self):
+        response = _run("chat", {"message": "What is my tax if I make 150k filing single in CA"})
+        assert response["success"] is True
+        data = response["data"]
+        assert data["intent"] == "tax_calculate"
+        assert data["extracted"]["amount"] == 150_000.0
+        assert data["extracted"]["state"] == "CA"
+        assert "total tax" in data["reply"]
+
+    def test_audit_risk_question_routes_correctly_with_correct_amount(self):
+        response = _run(
+            "chat", {"message": "I am self employed with 1099 income of 200k, am I at audit risk?"}
+        )
+        data = response["data"]
+        assert data["intent"] == "risk_assess"
+        assert data["extracted"]["amount"] == 200_000.0
+        assert data["extracted"]["self_employed"] is True
+
+    def test_document_question_routes_to_document_analyze(self):
+        response = _run(
+            "chat",
+            {"message": "Is this contract risky: includes indemnification and a class action waiver"},
+        )
+        assert response["data"]["intent"] == "document_analyze"
+
+    def test_no_keyword_or_number_falls_back_to_full_case(self):
+        response = _run("chat", {"message": "hello there"})
+        data = response["data"]
+        assert data["intent"] == "platform_analyze"
+        assert data["extracted"]["amount"] == 120_000.0  # documented default
+
+    def test_message_with_lone_comma_does_not_crash(self):
+        # Regression test for the exact failing message found during manual testing.
+        response = _run("chat", {"message": "Should I file jointly or separately, I am married with kids"})
+        assert response["success"] is True
+        assert response["data"]["intent"] == "filing_status_tree"
+
+    def test_business_owner_routes_to_optimizer_with_state_tax(self):
+        response = _run("chat", {"message": "I own a business making 300k, how can I save on taxes?"})
+        data = response["data"]
+        assert data["intent"] == "algorithm_optimize"
+        assert data["extracted"]["business_owner"] is True
+        assert data["result"]["total_savings"] >= 0
+
+    def test_unknown_intent_never_raises(self):
+        # Broad smoke test: no matter what free text comes in, dispatch always
+        # returns success (routing to platform_analyze as the safe default)
+        # rather than propagating an exception to the caller.
+        for message in ["", "asdkjfh aslkdjf", "12345", "!!!???", "married married married"]:
+            response = _run("chat", {"message": message})
+            assert response["success"] is True, f"message {message!r} raised: {response}"

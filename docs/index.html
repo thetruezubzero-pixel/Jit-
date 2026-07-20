@@ -15,7 +15,8 @@
   </header>
 
   <nav id="tabs" class="tabs">
-    <button class="tab-btn active" data-tab="platform">Full Case</button>
+    <button class="tab-btn active" data-tab="chat">Chat</button>
+    <button class="tab-btn" data-tab="platform">Full Case</button>
     <button class="tab-btn" data-tab="tax">Tax Calculator</button>
     <button class="tab-btn" data-tab="deductions">Deductions</button>
     <button class="tab-btn" data-tab="amt">AMT</button>
@@ -28,8 +29,24 @@
   </nav>
 
   <main>
+    <!-- Chat: one free-text box routed to whichever engine(s) it matches -->
+    <section class="panel active" data-panel="chat">
+      <h2>Ask Jit</h2>
+      <p class="hint">
+        Plain keyword/regex routing to the same engines as every tab below &mdash;
+        not a language model, so it stays free and runs entirely in your browser.
+        Try: <em>&ldquo;What&rsquo;s my tax on 150k filing single in CA&rdquo;</em> or
+        <em>&ldquo;I&rsquo;m self-employed with 200k income, am I at audit risk?&rdquo;</em>
+      </p>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form">
+        <textarea id="chat-input" rows="2" placeholder="Ask about your tax, deductions, audit risk, a contract, filing status…"></textarea>
+        <button type="submit" class="run">Send</button>
+      </form>
+    </section>
+
     <!-- Full Case (cross-module orchestration via JitPlatform) -->
-    <section class="panel active" data-panel="platform">
+    <section class="panel" data-panel="platform">
       <h2>Full Case Analysis</h2>
       <p class="hint">Runs a case through accounting &rarr; legal &rarr; algorithms, in that order, via <code>JitPlatform</code>.</p>
       <form data-module="platform_analyze">
