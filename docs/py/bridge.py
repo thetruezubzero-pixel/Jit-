@@ -870,6 +870,73 @@ _FACTS = [
             "('use it or lose it')."
         ),
     },
+    {
+        "keywords": ("medical expense deduction", "medical expense threshold"),
+        "answer": (
+            "Unreimbursed medical/dental expenses are itemizable only "
+            "above 7.5% of AGI — e.g. $100,000 AGI means the first $7,500 "
+            "of medical costs isn't deductible, only the amount above it. "
+            "Covers costs for yourself, a spouse, and dependents; insurance "
+            "premiums paid pre-tax (most employer plans) don't count again "
+            "here."
+        ),
+    },
+    {
+        "keywords": (
+            "cancellation of debt",
+            "cancelled debt",
+            "canceled debt",
+            "1099-c",
+            "1099c",
+            "debt forgiveness",
+        ),
+        "answer": (
+            "Forgiven/cancelled debt (reported on Form 1099-C) is taxable "
+            "income by default — a creditor writing off what you owed is "
+            "treated as if they paid it to you. The main exceptions: debt "
+            "discharged in bankruptcy, or discharged while you were "
+            "insolvent (liabilities exceeded assets, excludable up to the "
+            "amount you were insolvent by), and qualified principal "
+            "residence debt under separate rules."
+        ),
+    },
+    {
+        "keywords": ("bankruptcy discharge", "debt discharged in bankruptcy"),
+        "answer": (
+            "Debt discharged through a bankruptcy case (Title 11) is fully "
+            "excluded from taxable income — no 1099-C income results, "
+            "unlike ordinary debt forgiveness outside bankruptcy. You "
+            "generally must reduce certain tax attributes (like loss "
+            "carryforwards or basis in property) by the excluded amount "
+            "instead."
+        ),
+    },
+    {
+        "keywords": ("life insurance proceeds", "life insurance payout", "life insurance taxable"),
+        "answer": (
+            "Life insurance death-benefit proceeds paid in a lump sum are "
+            "generally not taxable income to the beneficiary. Interest "
+            "earned if payment is delayed/installment-based is taxable, "
+            "and proceeds can still be pulled into the deceased's taxable "
+            "estate for estate-tax purposes if they owned the policy."
+        ),
+    },
+    {
+        "keywords": (
+            "disability insurance taxable",
+            "disability benefits taxable",
+            "short term disability taxable",
+            "long term disability taxable",
+        ),
+        "answer": (
+            "Whether disability benefits are taxable depends on who paid "
+            "the premiums: benefits are tax-free if you paid the premiums "
+            "yourself with after-tax dollars, but taxable if your employer "
+            "paid the premiums (or you paid with pre-tax dollars). "
+            "Employer-paid premiums themselves aren't taxable income to "
+            "you up front — the benefit is what's taxed later."
+        ),
+    },
 ]
 
 

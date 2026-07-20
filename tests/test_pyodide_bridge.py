@@ -610,6 +610,11 @@ class TestFactLookup:
             ("what's the traditional ira deduction limit", "$77,000"),
             ("what age do I need to take my rmd", "age 73"),
             ("what's the fsa contribution limit", "$3,200"),
+            ("what's the medical expense deduction threshold", "7.5%"),
+            ("is cancellation of debt taxable", "1099-C"),
+            ("is debt discharged in bankruptcy taxable", "Title 11"),
+            ("are life insurance proceeds taxable", "not taxable"),
+            ("is short term disability taxable", "who paid the premiums"),
         ],
     )
     def test_fact_answers_directly_without_a_calculation(self, message, expected_snippet):
