@@ -526,6 +526,24 @@ function addChatBubble(role, html) {
   return bubble;
 }
 
+// A short, human-readable gloss on bridge.py's routing_reason/matched_keywords
+// — real, inspectable routing metadata (not a fabricated confidence score),
+// surfaced here so "why did it answer that" isn't a black box.
+function formatRoutingNote(routingReason, matchedKeywords) {
+  switch (routingReason) {
+    case "keyword_match": {
+      const kws = Object.values(matchedKeywords || {}).flat();
+      return kws.length ? `matched: "${kws.join('", "')}"` : "";
+    }
+    case "resumed_suggestion":
+      return "continuing from the suggestion above";
+    case "resumed_pending_clarify":
+      return "using what you just told me";
+    default:
+      return "";
+  }
+}
+
 const INTENT_LABELS = {
   tax_calculate: "Tax Calculator",
   deduction_optimize: "Deductions",
@@ -565,7 +583,7 @@ if (chatForm) {
       // or a real calculation all update the same underlying context.
       persistChatState(dispatch);
 
-      const { intent, matched, reply, result } = response.data;
+      const { intent, matched, reply, result, routing_reason, matched_keywords } = response.data;
 
       if (intent === "clarify" || intent === "fact") {
         // Either asking a question back, or answering straight from the
@@ -612,9 +630,10 @@ if (chatForm) {
       } catch {
         /* If a specific renderer can't handle this shape, the reply text still stands alone. */
       }
+      const routingNote = formatRoutingNote(routing_reason, matched_keywords);
       addChatBubble(
         "assistant",
-        `<span class="intent-tag">Routed to: ${label}</span>${reply}${cardHtml}`
+        `<span class="intent-tag">Routed to: ${label}</span>${routingNote ? `<span class="routing-note">${routingNote}</span>` : ""}${reply}${cardHtml}`
       );
       refreshSessionInsights();
     } catch (err) {

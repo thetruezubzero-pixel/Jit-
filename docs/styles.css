@@ -117,6 +117,14 @@ form {
   letter-spacing: 0.03em;
   margin-bottom: 0.3rem;
 }
+.chat-msg.assistant .routing-note {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+  opacity: 0.75;
+  font-style: italic;
+  margin-bottom: 0.4rem;
+}
 #chat-form { display: flex; gap: 0.6rem; align-items: flex-end; }
 #chat-form textarea { flex: 1; }
 #chat-form button { flex: 0 0 auto; margin-top: 0; }
