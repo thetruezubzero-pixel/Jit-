@@ -31,10 +31,12 @@ AMT_PHASEOUT_START: Dict[FilingStatus, float] = {
 }
 
 # AMT tax rates
-AMT_RATE_1 = 0.26  # On AMTI up to $220,700 (2024, all filing statuses except MFS)
+# $220,700 / $110,350 were the 2023 breakpoints (mislabeled "2024" here) --
+# Rev. Proc. 2023-34 sets the actual 2024 figures at $232,600 / $116,300.
+AMT_RATE_1 = 0.26  # On AMTI up to $232,600 (2024, all filing statuses except MFS)
 AMT_RATE_2 = 0.28  # On AMTI above threshold
-AMT_RATE_BREAKPOINT = 220_700  # All statuses (MFS: $110,350)
-AMT_RATE_BREAKPOINT_MFS = 110_350
+AMT_RATE_BREAKPOINT = 232_600  # All statuses (MFS: $116,300)
+AMT_RATE_BREAKPOINT_MFS = 116_300
 
 
 @dataclass

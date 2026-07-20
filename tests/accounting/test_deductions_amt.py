@@ -138,6 +138,46 @@ class TestAMTCalculator:
         assert not result.is_subject_to_amt
         assert result.amt_owed == 0.0
 
+    def test_26_28_rate_breakpoint_matches_2024_rev_proc(self):
+        # Regression: AMT_RATE_BREAKPOINT/AMT_RATE_BREAKPOINT_MFS held
+        # $220,700/$110,350 -- the real 2023 figures, mislabeled "2024" in
+        # a comment -- instead of the actual 2024 amounts from Rev. Proc.
+        # 2023-34 ($232,600/$116,300). Internally consistent with the
+        # AMT exemption's own 2023->2024 inflation adjustment (both this
+        # breakpoint and the exemption are indexed together), and the MFS
+        # figure is exactly half the main one in both the old and new
+        # values, confirming this was a stale prior-year constant rather
+        # than an intentionally different number.
+        from jit.accounting.amt_calculator import (
+            AMT_RATE_BREAKPOINT,
+            AMT_RATE_BREAKPOINT_MFS,
+        )
+
+        assert AMT_RATE_BREAKPOINT == 232_600
+        assert AMT_RATE_BREAKPOINT_MFS == 116_300
+
+        # amti_before_exemption = 100,000 + 210,700 = 310,700; well under
+        # the $609,350 single-filer phase-out start, so the full $85,700
+        # exemption applies with no phase-out. ordinary_amti (post-
+        # exemption) = 310,700 - 85,700 = $225,000 -- between the old,
+        # wrong breakpoint ($220,700) and the real 2024 one ($232,600), so
+        # this specifically distinguishes the two: the buggy constant
+        # would tax part of this at 28%, the correct one taxes all of it
+        # at a flat 26%.
+        calc = AMTCalculator()
+        result = calc.calculate(
+            regular_taxable_income=100_000,
+            regular_tax=0,  # isolate the TMT-rate behavior, not AMT owed
+            filing_status=FilingStatus.SINGLE,
+            iso_bargain_element=210_700,
+        )
+        assert result.amti == 225_000.0
+        assert result.tentative_minimum_tax == round(225_000 * 0.26, 2)
+        # What the stale $220,700 breakpoint would have produced instead --
+        # confirms this scenario really does distinguish the two values.
+        buggy_tmt = 220_700 * 0.26 + (225_000 - 220_700) * 0.28
+        assert result.tentative_minimum_tax != round(buggy_tmt, 2)
+
     def test_iso_triggers_amt(self):
         """Large ISO bargain element should trigger AMT."""
         calc = AMTCalculator()

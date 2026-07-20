@@ -12,6 +12,8 @@ from datetime import date
 from enum import Enum
 from typing import Dict, List, Optional
 
+from jit.accounting.tax_calculator import FilingStatus
+
 
 class IncomeType(str, Enum):
     """IRS income classification types."""
@@ -271,12 +273,18 @@ class IncomeProcessor:
         self.add_record(record)
         return record
 
-    def process(self, tax_year: int) -> IncomeSummary:
+    def process(
+        self, tax_year: int, filing_status: FilingStatus = FilingStatus.SINGLE
+    ) -> IncomeSummary:
         """
         Process all income records for the given tax year.
 
         Args:
             tax_year: The tax year to process.
+            filing_status: Affects the Social Security taxability thresholds
+                (married filing jointly uses higher thresholds than every
+                other status) -- defaults to single for callers that don't
+                need this distinction.
 
         Returns:
             IncomeSummary with all income categorized and aggregated.
@@ -288,7 +296,7 @@ class IncomeProcessor:
             self._categorize_record(record, summary)
 
         # Apply Social Security taxability rules
-        summary.total_taxable_ss = self._calculate_taxable_ss(summary)
+        summary.total_taxable_ss = self._calculate_taxable_ss(summary, filing_status)
 
         return summary
 
@@ -371,14 +379,31 @@ class IncomeProcessor:
         else:
             summary.total_other += record.amount
 
-    def _calculate_taxable_ss(self, summary: IncomeSummary) -> float:
+    def _calculate_taxable_ss(
+        self, summary: IncomeSummary, filing_status: FilingStatus = FilingStatus.SINGLE
+    ) -> float:
         """
         Calculate the taxable portion of Social Security benefits.
 
-        Uses the provisional income method from IRC §86.
+        Uses the provisional income method from IRC §86 / IRS Publication 915.
         """
         if summary.total_social_security == 0:
             return 0.0
+
+        # Base/adjusted-base provisional-income thresholds per Pub 915 --
+        # married filing jointly gets higher thresholds than every other
+        # status. (The narrower rule for a married-filing-separately filer
+        # who lived with their spouse at any point in the year -- base
+        # amount $0, up to 85% taxable regardless of income -- isn't
+        # modeled here, since nothing else in this codebase tracks whether
+        # spouses lived together; MFS uses the single-filer thresholds as a
+        # simplification, same as everywhere else filing status is handled
+        # in this codebase.)
+        if filing_status == FilingStatus.MARRIED_FILING_JOINTLY:
+            base_amount, adjusted_base_amount = 32_000, 44_000
+        else:
+            base_amount, adjusted_base_amount = 25_000, 34_000
+        upper_tier_base = (adjusted_base_amount - base_amount) * 0.5
 
         # Provisional income = AGI (excluding SS) + tax-exempt interest + 50% SS.
         # summary.gross_income already excludes the SS benefit at this point in
@@ -389,16 +414,16 @@ class IncomeProcessor:
         # full SS benefit -- often driving taxable SS to $0 when it shouldn't be.
         provisional = summary.gross_income + (summary.total_social_security * 0.5)
 
-        if provisional < 25_000:
+        if provisional < base_amount:
             return 0.0
-        elif provisional < 34_000:
+        elif provisional < adjusted_base_amount:
             taxable = min(
-                (provisional - 25_000) * 0.5,
+                (provisional - base_amount) * 0.5,
                 summary.total_social_security * 0.5,
             )
         else:
             taxable = min(
-                4_500 + (provisional - 34_000) * 0.85,
+                upper_tier_base + (provisional - adjusted_base_amount) * 0.85,
                 summary.total_social_security * 0.85,
             )
 

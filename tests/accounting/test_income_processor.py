@@ -11,6 +11,7 @@ from jit.accounting.income_processor import (
     IncomeRecord,
     IncomeType,
 )
+from jit.accounting.tax_calculator import FilingStatus
 
 
 @pytest.fixture
@@ -138,6 +139,60 @@ def test_provisional_income_adds_half_of_ss_not_subtracts(processor):
     # Buggy provisional income = 28,000 - 10,000 + 0.5*10,000 = 23,000
     # (below $25,000, so the bug reports $0 -- silently wrong).
     assert summary.total_taxable_ss > 0
+
+
+def test_married_filing_jointly_uses_higher_ss_thresholds(processor):
+    # Regression: taxable Social Security used to always use the
+    # single-filer thresholds ($25,000/$34,000) regardless of actual
+    # filing status. Married filing jointly gets higher thresholds
+    # ($32,000/$44,000) per IRS Publication 915, so the same income
+    # produces less taxable SS for a joint return than it would under the
+    # single-filer math.
+    processor.add_record(
+        IncomeRecord(
+            income_type=IncomeType.SOCIAL_SECURITY,
+            amount=30_000,
+            source="SSA",
+            tax_year=2024,
+        )
+    )
+    processor.add_record(
+        IncomeRecord(
+            income_type=IncomeType.RETIREMENT_DISTRIBUTION,
+            amount=40_000,
+            source="401k",
+            tax_year=2024,
+        )
+    )
+    summary = processor.process(2024, filing_status=FilingStatus.MARRIED_FILING_JOINTLY)
+    # Provisional income = 40,000 + 0.5*30,000 = 55,000, above the $44,000
+    # MFJ adjusted base amount, so:
+    # taxable = min(6,000 + 0.85*(55,000-44,000), 0.85*30,000)
+    #         = min(6,000 + 9,350, 25,500) = min(15,350, 25,500) = 15,350
+    assert summary.total_taxable_ss == 15_350.0
+
+    # The single-filer default on the exact same income must produce a
+    # different (higher) taxable amount, proving filing_status actually
+    # changes the result rather than being silently ignored.
+    single_processor = IncomeProcessor()
+    single_processor.add_record(
+        IncomeRecord(
+            income_type=IncomeType.SOCIAL_SECURITY,
+            amount=30_000,
+            source="SSA",
+            tax_year=2024,
+        )
+    )
+    single_processor.add_record(
+        IncomeRecord(
+            income_type=IncomeType.RETIREMENT_DISTRIBUTION,
+            amount=40_000,
+            source="401k",
+            tax_year=2024,
+        )
+    )
+    single_summary = single_processor.process(2024)
+    assert single_summary.total_taxable_ss > summary.total_taxable_ss
 
 
 def test_gross_income_aggregation(processor):
