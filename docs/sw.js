@@ -15,10 +15,20 @@
 // cache cleanup has nothing to clean up and a returning visitor can stay
 // stuck on stale assets far longer than intended — this is what caused a
 // shipped CSS fix to not actually show up on a real device.
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE_NAME = `jit-${CACHE_VERSION}`;
 
-const PRECACHE_URLS = ["./", "./index.html", "./styles.css", "./app.js", "./py/bridge.py"];
+const PRECACHE_URLS = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./py/bridge.py",
+  "./manifest.json",
+  "./icons/icon-180.png",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
