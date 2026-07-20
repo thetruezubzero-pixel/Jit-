@@ -489,6 +489,153 @@ _FACTS = [
             "fully phased out."
         ),
     },
+    {
+        "keywords": ("child tax credit",),
+        "answer": (
+            "2024 Child Tax Credit: $2,000 per qualifying child under 17, up to "
+            "$1,700 of which is refundable (Additional CTC). Phases out $50 per "
+            "$1,000 of MAGI above $200,000 (single/HOH) or $400,000 (married "
+            "filing jointly)."
+        ),
+    },
+    {
+        "keywords": ("eitc", "earned income tax credit", "earned income credit"),
+        "answer": (
+            "2024 Earned Income Tax Credit maximum: $632 (no children), $4,213 "
+            "(1 child), $6,960 (2 children), $7,830 (3+ children). Fully phases "
+            "out around $18,600-$59,900 (single/HOH) or $25,500-$66,800 (married "
+            "filing jointly) depending on number of qualifying children."
+        ),
+    },
+    {
+        "keywords": (
+            "dependent care credit",
+            "child and dependent care credit",
+            "child care credit",
+        ),
+        "answer": (
+            "The Child and Dependent Care Credit applies to up to $3,000 of "
+            "care expenses for one qualifying person, or $6,000 for two or "
+            "more. The credit rate is 20%-35% of those expenses depending on "
+            "AGI (35% at AGI $15,000 or below, phasing down to 20% above "
+            "$43,000)."
+        ),
+    },
+    {
+        "keywords": ("american opportunity credit", "aotc"),
+        "answer": (
+            "The American Opportunity Tax Credit: up to $2,500 per student "
+            "(100% of the first $2,000 of qualified expenses plus 25% of the "
+            "next $2,000), 40% refundable (up to $1,000). Phases out at MAGI "
+            "$80,000-$90,000 (single) or $160,000-$180,000 (married filing "
+            "jointly). Limited to a student's first 4 years of postsecondary "
+            "education."
+        ),
+    },
+    {
+        "keywords": ("lifetime learning credit",),
+        "answer": (
+            "The Lifetime Learning Credit: 20% of up to $10,000 of qualified "
+            "education expenses per return (max $2,000), nonrefundable. Same "
+            "MAGI phase-out as the American Opportunity Credit ($80,000-$90,000 "
+            "single, $160,000-$180,000 married filing jointly), but with no "
+            "limit on the number of years you can claim it."
+        ),
+    },
+    {
+        "keywords": ("estate tax exemption", "estate tax exclusion"),
+        "answer": (
+            "2024 federal estate tax basic exclusion amount: $13.61 million per "
+            "person ($27.22 million for a married couple with portability). "
+            "Amounts above the exclusion are taxed up to 40%. This exclusion is "
+            "scheduled to roughly halve at the end of 2025 absent new "
+            "legislation."
+        ),
+    },
+    {
+        "keywords": ("gift tax exclusion", "annual gift exclusion"),
+        "answer": (
+            "2024 annual gift tax exclusion: $18,000 per recipient ($36,000 for "
+            "a married couple splitting gifts), with no limit on the number of "
+            "recipients. Gifts above that use up part of your lifetime estate "
+            "tax exclusion rather than triggering gift tax immediately."
+        ),
+    },
+    {
+        "keywords": ("529 plan", "529 contribution"),
+        "answer": (
+            "529 plan contributions aren't federally deductible, but growth and "
+            "withdrawals for qualified education expenses are tax-free. "
+            "Contributions count as gifts (2024 annual exclusion $18,000 per "
+            "beneficiary), but a special election lets you front-load 5 years "
+            "of exclusions at once ($90,000, or $180,000 for a couple) without "
+            "using more exclusion in years 2-5."
+        ),
+    },
+    {
+        "keywords": ("self employment tax rate", "self-employment tax rate", "se tax rate"),
+        "answer": (
+            "Self-employment tax is 15.3% total: 12.4% Social Security (on "
+            "earnings up to the annual wage base, $168,600 in 2024) plus 2.9% "
+            "Medicare (uncapped), computed on 92.35% of net self-employment "
+            "earnings. Half of the SE tax you pay is deductible above the "
+            "line."
+        ),
+    },
+    {
+        "keywords": ("capital loss deduction", "capital loss limit"),
+        "answer": (
+            "Net capital losses offset capital gains dollar-for-dollar, and up "
+            "to $3,000 of any remaining loss ($1,500 if married filing "
+            "separately) can offset ordinary income per year. Unused losses "
+            "carry forward indefinitely to future tax years."
+        ),
+    },
+    {
+        "keywords": ("charitable deduction limit", "charitable contribution limit"),
+        "answer": (
+            "Charitable cash gifts to public charities are deductible up to "
+            "60% of AGI; gifts of appreciated long-term property are limited to "
+            "30% of AGI. Contributions above those limits carry forward for up "
+            "to 5 years."
+        ),
+    },
+    {
+        "keywords": ("kiddie tax",),
+        "answer": (
+            'The "kiddie tax" taxes a child\'s unearned income (interest, '
+            "dividends, capital gains) above $2,600 (2024) at the parents' "
+            "marginal rate. The first $1,300 is tax-free and the next $1,300 "
+            "is taxed at the child's own rate."
+        ),
+    },
+    {
+        "keywords": ("social security wage base", "ss wage base"),
+        "answer": (
+            "2024 Social Security wage base: $168,600 — the 6.2% employee "
+            "(12.4% self-employed) Social Security payroll tax only applies up "
+            "to this amount of earnings. The 1.45%/2.9% Medicare portion has no "
+            "wage cap."
+        ),
+    },
+    {
+        "keywords": ("niit", "net investment income tax"),
+        "answer": (
+            "The Net Investment Income Tax (NIIT) is a 3.8% surtax on the "
+            "lesser of your net investment income or the amount your MAGI "
+            "exceeds $200,000 (single/HOH), $250,000 (married filing jointly), "
+            "or $125,000 (married filing separately)."
+        ),
+    },
+    {
+        "keywords": ("additional medicare tax",),
+        "answer": (
+            "The Additional Medicare Tax adds 0.9% on wages or self-employment "
+            "income above $200,000 (single), $250,000 (married filing "
+            "jointly), or $125,000 (married filing separately). It isn't "
+            "employer-matched and the thresholds aren't indexed for inflation."
+        ),
+    },
 ]
 
 
