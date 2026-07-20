@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "copilot/**"]
+    branches: [main, "copilot/**", "claude/**"]
   pull_request:
     branches: [main]
 
@@ -79,11 +79,11 @@ jobs:
           pip install flake8 black
 
       - name: Check formatting with black
-        run: black --check --diff jit/ tests/ examples/
+        run: black --check --diff jit/ tests/ examples/ docs/py/
 
       - name: Lint with flake8
         run: |
-          flake8 jit/ tests/ \
+          flake8 jit/ tests/ docs/py/ \
             --max-line-length=100 \
             --extend-ignore=E203,W503
 

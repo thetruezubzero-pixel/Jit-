@@ -34,13 +34,39 @@ Pages Deployments API, since that API's health-check call is a single point
 of failure the site doesn't otherwise need.)
 
 The site is a single chat box. Plain keyword/regex routing (not a language
-model — no paid API, no external calls) reads your message and dispatches
-to whichever engine answers it — tax calculation, deductions, AMT,
-quarterly estimates, a legal document, compliance (FBAR/FATCA), filing
-status, audit risk, optimization strategies, or the full cross-module
-`JitPlatform` case analysis if nothing more specific matches. No data ever
-leaves the device; there's no server to send it to. See
-`docs/py/bridge.py` for the routing/dispatch layer and
+model — no paid API, no external calls by default) reads your message and
+dispatches to whichever engine answers it — tax calculation, deductions,
+AMT, quarterly estimates, a legal document, compliance (FBAR/FATCA), filing
+status, audit risk, optimization strategies, a built-in tax-law fact
+(standard deduction, SALT cap, retirement/HSA limits, credits, estate/gift
+tax, and more — see `_FACTS` in `docs/py/bridge.py`), or the full
+cross-module `JitPlatform` case analysis if you explicitly ask for
+everything. If nothing matches at all, it says so plainly instead of
+guessing. No data ever leaves the device by default; there's no server to
+send it to.
+
+A few things make it feel more like an ongoing conversation rather than a
+one-shot form:
+
+- **Memory** — income, filing status, and state are remembered across
+  messages *and* across visits (stored only in your browser via
+  `localStorage`), so you don't have to repeat yourself. "Clear
+  conversation" forgets it.
+- **Clarifying questions** — if an amount-dependent question has no income
+  to work with, it asks instead of silently guessing one.
+- **Session insights** — a rule-based panel that flags things like a big
+  swing in stated income, a deduction ratio high enough to be a real
+  audit-selection correlate, or self-employment income mentioned without
+  ever checking deductions or audit risk. Plain statistics, no model.
+- **Optional AI assist** — you can paste your own free Google Gemini API
+  key (no card required) to get an AI-generated answer for questions the
+  built-in router genuinely can't classify. Off by default; the key never
+  leaves your browser; every deterministic calculation is unaffected either
+  way.
+- **Share** — sends the visible conversation out through your phone's
+  normal share sheet (or copies/downloads it as a fallback).
+
+See `docs/py/bridge.py` for the routing/dispatch layer and
 `scripts/sync_pyodide_source.sh` for what gets synced.
 
 ---
