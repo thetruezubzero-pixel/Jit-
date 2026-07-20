@@ -23,7 +23,10 @@
     <section class="panel active" data-panel="chat">
       <div class="panel-head">
         <h2>Ask Jit</h2>
-        <button type="button" id="chat-reset" class="link-btn">Clear conversation</button>
+        <div class="panel-actions">
+          <button type="button" id="chat-share" class="link-btn">Share</button>
+          <button type="button" id="chat-reset" class="link-btn">Clear conversation</button>
+        </div>
       </div>
       <p class="hint">
         One box for everything &mdash; tax, deductions, AMT, quarterly estimates,
@@ -39,6 +42,20 @@
         <textarea id="chat-input" rows="2" placeholder="Ask about your tax, deductions, audit risk, a contract, filing status…"></textarea>
         <button type="submit" class="run">Send</button>
       </form>
+
+      <details class="settings">
+        <summary>Display settings</summary>
+        <p class="hint">
+          Your income/filing status/state are remembered across visits
+          (stored only in this browser) so you don't have to repeat
+          yourself every time you reopen the app &mdash; use
+          &ldquo;Clear conversation&rdquo; above to forget it.
+        </p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="compact-toggle" />
+          Compact result cards
+        </label>
+      </details>
 
       <details class="settings">
         <summary>AI assist settings (optional)</summary>

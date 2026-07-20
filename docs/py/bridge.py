@@ -924,6 +924,30 @@ def chat_reset(payload: dict) -> dict:
     return {"reset": True}
 
 
+def chat_export_state(payload: dict) -> dict:
+    """Serialize remembered context + session history for the frontend to
+    persist (e.g. to localStorage). Pyodide's Python interpreter is
+    recreated from scratch on every page load, so nothing here survives a
+    refresh on its own — this is what makes that possible, across every
+    intent/domain uniformly, since both structures are shared by all of
+    them."""
+    return {"context": dict(_conversation_context), "history": list(_session_history)}
+
+
+def chat_import_state(payload: dict) -> dict:
+    """Restore state previously produced by chat_export_state — called once
+    right after boot with whatever was saved from the last visit."""
+    context = payload.get("context") or {}
+    for key in _conversation_context:
+        if key in context:
+            _conversation_context[key] = context[key]
+    history = payload.get("history")
+    if isinstance(history, list):
+        _session_history.clear()
+        _session_history.extend(history)
+    return {"restored": True}
+
+
 # History of computed (non-clarify, non-fact) chat turns this session, used
 # by session_insights() below to spot patterns across the conversation —
 # plain statistics over data the user already gave us, not a model.
@@ -986,6 +1010,8 @@ def session_insights(payload: dict) -> dict:
 _HANDLERS = {
     "chat": chat,
     "chat_reset": chat_reset,
+    "chat_export_state": chat_export_state,
+    "chat_import_state": chat_import_state,
     "session_insights": session_insights,
     "tax_calculate": tax_calculate,
     "deduction_optimize": deduction_optimize,

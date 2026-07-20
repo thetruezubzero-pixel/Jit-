@@ -22,6 +22,14 @@ async function fetchText(path) {
   return response.text();
 }
 
+// Persists chat's remembered context (income/filing status/etc.) and
+// session-insights history across page reloads. Pyodide's Python
+// interpreter is rebuilt from scratch on every visit, so without this,
+// closing the tab would forget everything — this applies uniformly to
+// every intent/domain, since bridge.py shares one context across all of
+// them. Stored only in this browser, nothing is sent anywhere.
+const CHAT_STATE_STORAGE = "jit_chat_state";
+
 async function boot() {
   setStatus("Loading Pyodide runtime…");
   const pyodide = await loadPyodide({ indexURL: "vendor/pyodide/" });
@@ -39,6 +47,13 @@ async function boot() {
   const bridgeSource = await fetchText("py/bridge.py");
   pyodide.runPython(bridgeSource);
   const dispatch = pyodide.globals.get("dispatch");
+
+  try {
+    const saved = localStorage.getItem(CHAT_STATE_STORAGE);
+    if (saved) dispatch("chat_import_state", saved);
+  } catch {
+    /* Corrupt or missing saved state — just start fresh. */
+  }
 
   setStatus("Engine ready — running 100% in your browser", "ready");
   return dispatch;
@@ -303,6 +318,87 @@ async function refreshSessionInsights() {
   }
 }
 
+function persistChatState(dispatch) {
+  try {
+    const response = JSON.parse(dispatch("chat_export_state", "{}"));
+    if (response.success) localStorage.setItem(CHAT_STATE_STORAGE, JSON.stringify(response.data));
+  } catch {
+    /* Persistence is a nice-to-have; a failure here shouldn't disrupt chat. */
+  }
+}
+
+// ---------------------------------------------------------------------
+// Compact/detailed layout toggle — applies to every rendered result card
+// uniformly via one CSS class, regardless of which intent produced it.
+// ---------------------------------------------------------------------
+const COMPACT_LAYOUT_STORAGE = "jit_compact_layout";
+const compactToggle = document.getElementById("compact-toggle");
+
+function applyCompactLayout(enabled) {
+  document.body.classList.toggle("compact", enabled);
+}
+
+if (compactToggle) {
+  const savedCompact = localStorage.getItem(COMPACT_LAYOUT_STORAGE) === "1";
+  compactToggle.checked = savedCompact;
+  applyCompactLayout(savedCompact);
+  compactToggle.addEventListener("change", () => {
+    localStorage.setItem(COMPACT_LAYOUT_STORAGE, compactToggle.checked ? "1" : "0");
+    applyCompactLayout(compactToggle.checked);
+  });
+}
+
+// ---------------------------------------------------------------------
+// Share/export — sends the visible conversation out through the phone's
+// normal share sheet (Messages, Mail, Notes, etc.), with a clipboard/file
+// fallback wherever the Web Share API isn't available.
+// ---------------------------------------------------------------------
+const chatShareBtn = document.getElementById("chat-share");
+
+function getTranscriptText() {
+  return Array.from(document.querySelectorAll("#chat-log .chat-msg"))
+    .map((el) => `${el.classList.contains("user") ? "You" : "Jit"}: ${el.innerText.trim()}`)
+    .join("\n\n");
+}
+
+async function shareTranscript() {
+  const text = getTranscriptText();
+  if (!text) return;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: "Jit conversation", text });
+      return;
+    } catch {
+      /* User cancelled, or share isn't actually usable here — fall through. */
+    }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = chatShareBtn.textContent;
+      chatShareBtn.textContent = "Copied!";
+      setTimeout(() => {
+        chatShareBtn.textContent = original;
+      }, 1500);
+      return;
+    } catch {
+      /* Clipboard access denied — fall through to a plain file download. */
+    }
+  }
+  const blob = new Blob([text], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "jit-conversation.txt";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+if (chatShareBtn) {
+  chatShareBtn.addEventListener("click", shareTranscript);
+}
+
 // ---------------------------------------------------------------------
 // Chat: one free-text box routed to whichever engine(s) it matches
 // ---------------------------------------------------------------------
@@ -352,6 +448,11 @@ if (chatForm) {
         addChatBubble("assistant", `<div class="error-box">${response.error}</div>`);
         return;
       }
+
+      // Persisted once here, right after every successful dispatch, so it
+      // covers every intent/domain uniformly — clarify, fact, AI-assisted,
+      // or a real calculation all update the same underlying context.
+      persistChatState(dispatch);
 
       const { intent, matched, reply, result } = response.data;
 
@@ -411,6 +512,7 @@ if (chatResetBtn) {
     } catch {
       /* If the engine never finished booting, there's nothing to reset yet. */
     }
+    localStorage.removeItem(CHAT_STATE_STORAGE);
     chatLog.innerHTML = "";
     if (insightsPanel) insightsPanel.innerHTML = "";
   });

@@ -465,3 +465,48 @@ class TestSessionInsights:
         bridge.dispatch("chat_reset", "{}")
         response = _run("session_insights", {})
         assert response["data"]["entries_analyzed"] == 0
+
+
+class TestChatStatePersistence:
+    """chat_export_state/chat_import_state are what let the frontend persist
+    memory across a page reload (Pyodide's interpreter is recreated from
+    scratch on every visit, so nothing survives on its own)."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_export_reflects_current_context_and_history(self):
+        _run("chat", {"message": "I make 150k, married, in NY"})
+        response = _run("chat_export_state", {})
+        data = response["data"]
+        assert data["context"]["amount"] == 150_000.0
+        assert data["context"]["filing_status"] == "married_filing_jointly"
+        assert data["context"]["state"] == "NY"
+        assert len(data["history"]) == 1
+
+    def test_import_restores_context_and_history_after_a_reset(self):
+        _run("chat", {"message": "I make 150k, married, in NY"})
+        exported = _run("chat_export_state", {})["data"]
+
+        bridge.dispatch("chat_reset", "{}")
+        assert _run("session_insights", {})["data"]["entries_analyzed"] == 0
+
+        restore_response = _run("chat_import_state", exported)
+        assert restore_response["data"] == {"restored": True}
+
+        # A follow-up with no amount should reuse the restored one, exactly
+        # as if the browser tab had never been closed.
+        follow_up = _run("chat", {"message": "what's my tax"})
+        assert follow_up["data"]["extracted"]["amount"] == 150_000.0
+        assert follow_up["data"]["extracted"]["filing_status"] == "married_filing_jointly"
+        assert follow_up["data"]["extracted"]["state"] == "NY"
+        # The restored entry plus this new one.
+        assert _run("session_insights", {})["data"]["entries_analyzed"] == 2
+
+    def test_import_ignores_malformed_payload_without_raising(self):
+        response = _run("chat_import_state", {"context": "not a dict", "history": "not a list"})
+        assert response["success"] is True
+        assert response["data"] == {"restored": True}
