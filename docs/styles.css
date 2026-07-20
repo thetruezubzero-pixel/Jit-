@@ -145,6 +145,31 @@ button.run:disabled { opacity: 0.6; }
 .list-item { font-size: 0.85rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--border); }
 .list-item:last-child { border-bottom: none; }
 
+.insights-panel {
+  background: rgba(91, 140, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+.insights-panel:empty { display: none; padding: 0; margin: 0; border: none; }
+.insights-panel h3 { margin: 0 0 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
+.insights-panel ul { margin: 0; padding-left: 1.1rem; }
+.insights-panel li { margin: 0.25rem 0; }
+
+details.settings {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+details.settings summary { cursor: pointer; color: var(--text); font-weight: 600; }
+details.settings .hint { margin: 0.6rem 0; }
+.checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
+.checkbox-row input { width: auto; }
+.key-row { display: flex; gap: 0.5rem; align-items: center; }
+.key-row input { flex: 1; }
+
 pre.raw {
   background: #0c0e14;
   border: 1px solid var(--border);

@@ -336,6 +336,15 @@ class TestChatMemoryAndClarify:
         response = _run("chat", {"message": "is this contract risky: includes indemnification"})
         assert response["data"]["intent"] == "document_analyze"
 
+    def test_matched_is_true_for_a_recognized_topic(self):
+        response = _run("chat", {"message": "what's my tax on 150k filing single in CA"})
+        assert response["data"]["matched"] is True
+
+    def test_matched_is_false_for_a_genuinely_unmatched_question(self):
+        response = _run("chat", {"message": "150k, tell me something interesting"})
+        assert response["data"]["intent"] == "platform_analyze"
+        assert response["data"]["matched"] is False
+
 
 class TestFactLookup:
     @pytest.fixture(autouse=True)
@@ -396,3 +405,63 @@ class TestFactLookup:
     def test_fact_lookup_needs_no_amount_even_with_no_context(self):
         response = _run("chat", {"message": "what's the standard deduction?"})
         assert response["data"]["intent"] == "fact"
+
+
+class TestSessionInsights:
+    """session_insights() is plain statistics over this session's own chat
+    history (income variance, deduction ratio, self-employment without a
+    deduction/risk check) — no model involved, just arithmetic over data the
+    user already gave the chat."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_no_history_means_no_insights(self):
+        response = _run("session_insights", {})
+        assert response["data"]["insights"] == []
+        assert response["data"]["entries_analyzed"] == 0
+
+    def test_fact_and_clarify_turns_are_not_recorded(self):
+        _run("chat", {"message": "what's the standard deduction?"})  # fact
+        _run("chat", {"message": "am I at audit risk?"})  # clarify, no amount yet
+        response = _run("session_insights", {})
+        assert response["data"]["entries_analyzed"] == 0
+
+    def test_income_variance_is_flagged(self):
+        _run("chat", {"message": "what's my tax on 100k"})
+        _run("chat", {"message": "what if I made 500k instead"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "varied a lot" in insights
+        assert "$100,000" in insights and "$500,000" in insights
+
+    def test_high_deduction_ratio_is_flagged(self):
+        # chat()'s deduction_optimize path itemizes 11% of AGI by default, so
+        # at a low enough income the flat $14,600 standard deduction (2024,
+        # single) ends up recommended instead — and dominates a small AGI.
+        _run("chat", {"message": "what deductions should I take on 30k income"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "audit-selection models" in insights
+
+    def test_self_employed_without_deduction_or_risk_check_is_flagged(self):
+        _run("chat", {"message": "what's my tax if I'm self employed making 150k"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "self-employment" in insights.lower()
+
+    def test_self_employed_flag_clears_once_deductions_are_checked(self):
+        _run("chat", {"message": "what's my tax if I'm self employed making 150k"})
+        _run("chat", {"message": "what deductions should I take?"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "haven't asked about deductions" not in insights
+
+    def test_reset_clears_session_history(self):
+        _run("chat", {"message": "what's my tax on 150k"})
+        bridge.dispatch("chat_reset", "{}")
+        response = _run("session_insights", {})
+        assert response["data"]["entries_analyzed"] == 0

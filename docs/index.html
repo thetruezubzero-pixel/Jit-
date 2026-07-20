@@ -34,10 +34,35 @@
         <em>&ldquo;What&rsquo;s the SALT cap?&rdquo;</em>
       </p>
       <div id="chat-log" class="chat-log"></div>
+      <div id="session-insights" class="insights-panel"></div>
       <form id="chat-form">
         <textarea id="chat-input" rows="2" placeholder="Ask about your tax, deductions, audit risk, a contract, filing status…"></textarea>
         <button type="submit" class="run">Send</button>
       </form>
+
+      <details class="settings">
+        <summary>AI assist settings (optional)</summary>
+        <p class="hint">
+          Everything above runs on plain, built-in logic — no AI, no server,
+          no cost. If you want an AI-generated answer for questions that
+          don't match any built-in calculator or fact, you can optionally
+          connect a free Google Gemini API key (no card required) from
+          <a href="https://ai.google.dev" target="_blank" rel="noopener">ai.google.dev</a>.
+          The key is stored only in this browser and sent directly from this
+          device to Google &mdash; never to any server of ours. Anyone with
+          access to this browser could read it back out, so only use a key
+          you're comfortable having on this device.
+        </p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="ai-assist-toggle" />
+          Use AI assist for questions the built-in router can't classify
+        </label>
+        <div class="key-row">
+          <input type="password" id="gemini-key-input" placeholder="Gemini API key" autocomplete="off" />
+          <button type="button" id="gemini-key-save" class="link-btn">Save</button>
+          <button type="button" id="gemini-key-clear" class="link-btn">Clear</button>
+        </div>
+      </details>
     </section>
   </main>
 

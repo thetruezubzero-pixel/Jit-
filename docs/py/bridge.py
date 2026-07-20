@@ -899,8 +899,11 @@ def chat(payload: dict) -> dict:
             f"recommendation: {result['algorithms']['primary_recommendation']}."
         )
 
+    _record_session_entry(intent, amount, self_employed, result)
+
     return {
         "intent": intent,
+        "matched": intent_matched,
         "extracted": {
             "amount": amount,
             "filing_status": filing_status,
@@ -917,12 +920,73 @@ def chat_reset(payload: dict) -> dict:
     """Forget everything chat() has remembered so far this session."""
     for key in _conversation_context:
         _conversation_context[key] = None
+    _session_history.clear()
     return {"reset": True}
+
+
+# History of computed (non-clarify, non-fact) chat turns this session, used
+# by session_insights() below to spot patterns across the conversation —
+# plain statistics over data the user already gave us, not a model.
+_session_history: list = []
+
+
+def _record_session_entry(intent: str, amount: float | None, self_employed: bool, result: dict):
+    entry = {"intent": intent, "amount": amount, "self_employed": self_employed}
+    if intent == "deduction_optimize" and isinstance(result, dict):
+        entry["recommended_deduction"] = result.get("recommended_deduction")
+    _session_history.append(entry)
+
+
+def session_insights(payload: dict) -> dict:
+    """Rule-based pattern detection over this session's chat history.
+
+    Flags things like an income figure that changed a lot between messages,
+    a deduction total that's high relative to income (a real audit-selection
+    correlate, matching the same ratio risk_assess already scores), or
+    self-employment income mentioned without ever checking deductions or
+    audit risk. Pure statistics/heuristics over this session's own data —
+    not a model, and computed entirely client-side.
+    """
+    insights = []
+
+    amounts = [e["amount"] for e in _session_history if e["amount"] is not None]
+    if len(amounts) >= 2 and min(amounts) > 0:
+        spread = (max(amounts) - min(amounts)) / min(amounts)
+        if spread > 0.5:
+            insights.append(
+                f"Your stated income varied a lot this session (${min(amounts):,.0f} to "
+                f"${max(amounts):,.0f}) — results reflect whichever figure was most recent."
+            )
+
+    for entry in _session_history:
+        deduction = entry.get("recommended_deduction")
+        if entry["intent"] == "deduction_optimize" and deduction and entry["amount"]:
+            ratio = deduction / entry["amount"]
+            if ratio > 0.35:
+                insights.append(
+                    f"Deductions came out to {ratio:.0%} of AGI in one calculation — "
+                    "that's a ratio the IRS's own audit-selection models flag more often; "
+                    "make sure everything claimed is well documented."
+                )
+                break
+
+    mentioned_self_employed = any(e["self_employed"] for e in _session_history)
+    checked_deductions_or_risk = any(
+        e["intent"] in ("risk_assess", "deduction_optimize") for e in _session_history
+    )
+    if mentioned_self_employed and not checked_deductions_or_risk:
+        insights.append(
+            "You mentioned self-employment income but haven't asked about deductions or "
+            "audit risk yet — self-employed filers often have the most to gain from both."
+        )
+
+    return {"insights": insights, "entries_analyzed": len(_session_history)}
 
 
 _HANDLERS = {
     "chat": chat,
     "chat_reset": chat_reset,
+    "session_insights": session_insights,
     "tax_calculate": tax_calculate,
     "deduction_optimize": deduction_optimize,
     "amt_calculate": amt_calculate,

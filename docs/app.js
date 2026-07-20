@@ -218,6 +218,92 @@ function renderResult(moduleName, resultEl, response) {
 }
 
 // ---------------------------------------------------------------------
+// Optional AI assist (Google Gemini) — only used for questions the
+// rule-based router genuinely can't classify. The API key is entered by
+// the user and stored solely in this browser's localStorage; it's sent
+// directly from this device to Google, never to any server of ours.
+// ---------------------------------------------------------------------
+const GEMINI_KEY_STORAGE = "jit_gemini_api_key";
+const AI_ASSIST_STORAGE = "jit_ai_assist_enabled";
+const GEMINI_MODEL = "gemini-2.0-flash";
+
+const getGeminiKey = () => localStorage.getItem(GEMINI_KEY_STORAGE) || "";
+const setGeminiKey = (key) =>
+  key ? localStorage.setItem(GEMINI_KEY_STORAGE, key) : localStorage.removeItem(GEMINI_KEY_STORAGE);
+const isAiAssistEnabled = () => localStorage.getItem(AI_ASSIST_STORAGE) === "1";
+const setAiAssistEnabled = (enabled) => localStorage.setItem(AI_ASSIST_STORAGE, enabled ? "1" : "0");
+
+async function askGemini(apiKey, message) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: message }] }],
+      generationConfig: { maxOutputTokens: 400 },
+    }),
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Gemini request failed (${response.status}): ${text.slice(0, 200)}`);
+  }
+  const data = await response.json();
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const text = parts.map((p) => p.text || "").join("").trim();
+  return text || "(Gemini returned no text.)";
+}
+
+const aiAssistToggle = document.getElementById("ai-assist-toggle");
+const geminiKeyInput = document.getElementById("gemini-key-input");
+const geminiKeySave = document.getElementById("gemini-key-save");
+const geminiKeyClear = document.getElementById("gemini-key-clear");
+
+if (aiAssistToggle) {
+  aiAssistToggle.checked = isAiAssistEnabled();
+  aiAssistToggle.addEventListener("change", () => setAiAssistEnabled(aiAssistToggle.checked));
+}
+if (geminiKeyInput) {
+  geminiKeyInput.value = getGeminiKey();
+}
+if (geminiKeySave) {
+  geminiKeySave.addEventListener("click", () => {
+    setGeminiKey(geminiKeyInput.value.trim());
+  });
+}
+if (geminiKeyClear) {
+  geminiKeyClear.addEventListener("click", () => {
+    setGeminiKey("");
+    geminiKeyInput.value = "";
+    if (aiAssistToggle) {
+      aiAssistToggle.checked = false;
+      setAiAssistEnabled(false);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------
+// Session insights — rule-based pattern detection over this session's
+// chat history (income variance, deduction ratio, unchecked self-employment
+// income). Refreshed after every computed chat turn.
+// ---------------------------------------------------------------------
+const insightsPanel = document.getElementById("session-insights");
+
+async function refreshSessionInsights() {
+  if (!insightsPanel) return;
+  try {
+    const dispatch = await bootPromise;
+    const response = JSON.parse(dispatch("session_insights", "{}"));
+    if (!response.success) return;
+    const { insights } = response.data;
+    insightsPanel.innerHTML = insights.length
+      ? `<h3>Session insights</h3><ul>${insights.map((i) => `<li>${i.replace(/</g, "&lt;")}</li>`).join("")}</ul>`
+      : "";
+  } catch {
+    /* Insights are a nice-to-have; a failure here shouldn't disrupt chat. */
+  }
+}
+
+// ---------------------------------------------------------------------
 // Chat: one free-text box routed to whichever engine(s) it matches
 // ---------------------------------------------------------------------
 const chatForm = document.getElementById("chat-form");
@@ -267,13 +353,32 @@ if (chatForm) {
         return;
       }
 
-      const { intent, reply, result } = response.data;
+      const { intent, matched, reply, result } = response.data;
 
       if (intent === "clarify" || intent === "fact") {
         // Either asking a question back, or answering straight from the
         // built-in fact library — neither ran an engine, so there's no
         // result card to show, and "Routed to" would be misleading.
         addChatBubble("assistant", reply);
+        return;
+      }
+
+      if (intent === "platform_analyze" && matched === false && isAiAssistEnabled() && getGeminiKey()) {
+        // The rule-based router found no real topic keyword here — rather
+        // than guessing a full-case analysis against made-up numbers, hand
+        // this one genuinely unmatched question to Gemini instead.
+        try {
+          const aiReply = await askGemini(getGeminiKey(), message);
+          addChatBubble(
+            "assistant",
+            `<span class="intent-tag">AI-assisted (Gemini) — not verified by Jit's calculators</span>${aiReply.replace(/</g, "&lt;")}`
+          );
+        } catch (err) {
+          addChatBubble(
+            "assistant",
+            `<div class="error-box">${(err && err.message) || err}</div>`
+          );
+        }
         return;
       }
 
@@ -288,6 +393,7 @@ if (chatForm) {
         "assistant",
         `<span class="intent-tag">Routed to: ${label}</span>${reply}${cardHtml}`
       );
+      refreshSessionInsights();
     } catch (err) {
       addChatBubble("assistant", `<div class="error-box">${err.message || err}</div>`);
     } finally {
@@ -306,5 +412,6 @@ if (chatResetBtn) {
       /* If the engine never finished booting, there's nothing to reset yet. */
     }
     chatLog.innerHTML = "";
+    if (insightsPanel) insightsPanel.innerHTML = "";
   });
 }
