@@ -326,6 +326,54 @@ def _has_any(text: str, *keywords: str) -> bool:
     return any(kw in lowered for kw in keywords)
 
 
+def _mentions_filing_status(text: str) -> bool:
+    return _has_any(
+        text,
+        "married",
+        "single",
+        "separat",
+        "joint",
+        "widow",
+        "surviving spouse",
+        "head of household",
+        " hoh",
+    )
+
+
+def _mentions_state(text: str) -> bool:
+    if _has_any(text, *_STATE_NAMES):
+        return True
+    import re
+
+    return bool(re.search(r"\bin ([A-Z]{2})\b", text))
+
+
+# Remembered across messages within one browser session (this module stays
+# loaded in Pyodide for as long as the page is open), so a follow-up like
+# "what if I'm married instead?" doesn't need to restate the income again.
+# Reset with the "chat_reset" handler (a fresh page load also clears it).
+_conversation_context: dict = {
+    "amount": None,
+    "filing_status": None,
+    "state": None,
+    "pending_intent": None,
+}
+
+# Intents where a dollar amount is essential to computing anything real —
+# rather than silently guessing $120k when none is given or remembered,
+# chat() asks for it instead.
+_NEEDS_AMOUNT = {
+    "tax_calculate",
+    "deduction_optimize",
+    "amt_calculate",
+    "quarterly_estimate",
+    "compliance_check",
+    "algorithm_optimize",
+    "risk_assess",
+    "platform_analyze",
+}
+
+
 _INTENT_KEYWORDS = {
     "amt_calculate": ("amt", "alternative minimum tax"),
     "quarterly_estimate": ("quarterly", "estimated payment", "estimated tax payment"),
@@ -346,7 +394,11 @@ _INTENT_KEYWORDS = {
 }
 
 
-def _classify_intent(text: str) -> str:
+def _classify_intent(text: str) -> tuple[str, bool]:
+    """Return (intent, matched) — matched is False when nothing in the text
+    hit any topic keyword, so the caller can tell "genuinely a full-case
+    question" apart from "no topic here, e.g. just an income figure."
+    """
     lowered = text.lower()
     scores = {
         intent: sum(1 for kw in keywords if kw in lowered)
@@ -354,8 +406,8 @@ def _classify_intent(text: str) -> str:
     }
     best_intent = max(scores, key=scores.get)
     if scores[best_intent] == 0:
-        return "platform_analyze"
-    return best_intent
+        return "platform_analyze", False
+    return best_intent, True
 
 
 def chat(payload: dict) -> dict:
@@ -367,9 +419,20 @@ def chat(payload: dict) -> dict:
     of a form.
     """
     message = payload.get("message", "")
-    amount = _extract_amount(message) or 120_000.0
-    filing_status = _extract_filing_status(message)
-    state = _extract_state(message)
+
+    extracted_amount = _extract_amount(message)
+    amount = extracted_amount if extracted_amount is not None else _conversation_context["amount"]
+
+    filing_status = (
+        _extract_filing_status(message)
+        if _mentions_filing_status(message)
+        else (_conversation_context["filing_status"] or "single")
+    )
+    state = (
+        _extract_state(message)
+        if _mentions_state(message)
+        else (_conversation_context["state"] or "CA")
+    )
     self_employed = _has_any(
         message, "self employ", "self-employ", "1099", "schedule c", "freelance"
     )
@@ -377,7 +440,37 @@ def chat(payload: dict) -> dict:
         message, "business owner", "own a business", "my business", "llc", "s-corp"
     )
 
-    intent = _classify_intent(message)
+    intent, intent_matched = _classify_intent(message)
+    if not intent_matched and _conversation_context["pending_intent"]:
+        # This message is just an answer ("150k, self-employed") to the
+        # question chat() asked last turn, not a fresh, unrelated topic —
+        # resume what was actually being asked about instead of falling
+        # back to the generic full-case default.
+        intent = _conversation_context["pending_intent"]
+
+    if intent in _NEEDS_AMOUNT and amount is None:
+        _conversation_context["pending_intent"] = intent
+        return {
+            "intent": "clarify",
+            "extracted": {
+                "amount": None,
+                "filing_status": filing_status,
+                "state": state,
+                "self_employed": self_employed,
+                "business_owner": business_owner,
+            },
+            "reply": (
+                "I don't have an income figure for this yet — what's your approximate "
+                'income (e.g. "150k" or "$85,000")?'
+            ),
+            "result": {},
+        }
+
+    # Remember what this turn established, so a follow-up question can omit it.
+    _conversation_context["amount"] = amount
+    _conversation_context["filing_status"] = filing_status
+    _conversation_context["state"] = state
+    _conversation_context["pending_intent"] = None
 
     if intent == "tax_calculate":
         result = tax_calculate(
@@ -535,8 +628,16 @@ def chat(payload: dict) -> dict:
     }
 
 
+def chat_reset(payload: dict) -> dict:
+    """Forget everything chat() has remembered so far this session."""
+    for key in _conversation_context:
+        _conversation_context[key] = None
+    return {"reset": True}
+
+
 _HANDLERS = {
     "chat": chat,
+    "chat_reset": chat_reset,
     "tax_calculate": tax_calculate,
     "deduction_optimize": deduction_optimize,
     "amt_calculate": amt_calculate,

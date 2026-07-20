@@ -206,6 +206,15 @@ class TestAmountExtraction:
 
 
 class TestChat:
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        # bridge stays imported for the whole test session, so its
+        # module-level _conversation_context would otherwise leak between
+        # tests — reset it before and after each one.
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
     def test_tax_question_routes_to_tax_calculate(self):
         response = _run("chat", {"message": "What is my tax if I make 150k filing single in CA"})
         assert response["success"] is True
@@ -229,11 +238,14 @@ class TestChat:
         response = _run("chat", {"message": message})
         assert response["data"]["intent"] == "document_analyze"
 
-    def test_no_keyword_or_number_falls_back_to_full_case(self):
+    def test_no_keyword_or_number_asks_for_income_instead_of_guessing(self):
+        # No topic keyword and no income mentioned (or remembered, thanks to
+        # the reset_conversation fixture) — chat() should ask rather than
+        # silently defaulting to a made-up income figure.
         response = _run("chat", {"message": "hello there"})
         data = response["data"]
-        assert data["intent"] == "platform_analyze"
-        assert data["extracted"]["amount"] == 120_000.0  # documented default
+        assert data["intent"] == "clarify"
+        assert data["extracted"]["amount"] is None
 
     def test_message_with_lone_comma_does_not_crash(self):
         # Regression test for the exact failing message found during manual testing.
@@ -254,8 +266,72 @@ class TestChat:
 
     def test_unknown_intent_never_raises(self):
         # Broad smoke test: no matter what free text comes in, dispatch always
-        # returns success (routing to platform_analyze as the safe default)
-        # rather than propagating an exception to the caller.
+        # returns success (routing to platform_analyze/clarify as the safe
+        # default) rather than propagating an exception to the caller.
         for message in ["", "asdkjfh aslkdjf", "12345", "!!!???", "married married married"]:
             response = _run("chat", {"message": message})
             assert response["success"] is True, f"message {message!r} raised: {response}"
+
+
+class TestChatMemoryAndClarify:
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_no_amount_asks_instead_of_guessing(self):
+        """Regression: chat() used to silently default to $120k when no
+        income was mentioned or remembered. It should ask instead."""
+        response = _run("chat", {"message": "am I at audit risk?"})
+        data = response["data"]
+        assert data["intent"] == "clarify"
+        assert data["extracted"]["amount"] is None
+        assert "income" in data["reply"].lower()
+        assert data["result"] == {}
+
+    def test_follow_up_resumes_the_pending_topic(self):
+        """After being asked to clarify, a reply that's just an income
+        figure (no new topic keywords) should resume what was actually
+        being asked about, not fall back to the generic full-case default."""
+        first = _run("chat", {"message": "am I at audit risk?"})
+        assert first["data"]["intent"] == "clarify"
+
+        second = _run("chat", {"message": "150k, self employed"})
+        assert second["data"]["intent"] == "risk_assess"
+        assert second["data"]["extracted"]["amount"] == 150_000.0
+        assert second["data"]["extracted"]["self_employed"] is True
+
+    def test_amount_is_remembered_across_messages(self):
+        first = _run("chat", {"message": "I make 150k, self employed"})
+        assert first["data"]["extracted"]["amount"] == 150_000.0
+
+        # No amount mentioned this time — should reuse the remembered one.
+        second = _run("chat", {"message": "what deductions should I take?"})
+        assert second["data"]["intent"] == "deduction_optimize"
+        assert second["data"]["extracted"]["amount"] == 150_000.0
+
+    def test_new_amount_overrides_remembered_one(self):
+        _run("chat", {"message": "I make 150k"})
+        second = _run("chat", {"message": "what if I made 300k instead"})
+        assert second["data"]["extracted"]["amount"] == 300_000.0
+
+    def test_filing_status_and_state_are_also_remembered(self):
+        _run("chat", {"message": "I make 150k, married, in NY"})
+        second = _run("chat", {"message": "what's my tax"})
+        assert second["data"]["extracted"]["filing_status"] == "married_filing_jointly"
+        assert second["data"]["extracted"]["state"] == "NY"
+
+    def test_reset_clears_remembered_context(self):
+        _run("chat", {"message": "I make 150k"})
+        response = json.loads(bridge.dispatch("chat_reset", "{}"))
+        assert response == {"success": True, "data": {"reset": True}}
+
+        after_reset = _run("chat", {"message": "am I at audit risk?"})
+        assert after_reset["data"]["intent"] == "clarify"
+
+    def test_document_question_needs_no_amount(self):
+        """Intents that don't depend on a dollar figure should never be
+        blocked waiting for one."""
+        response = _run("chat", {"message": "is this contract risky: includes indemnification"})
+        assert response["data"]["intent"] == "document_analyze"

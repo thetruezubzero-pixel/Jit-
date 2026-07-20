@@ -268,6 +268,14 @@ if (chatForm) {
       }
 
       const { intent, reply, result } = response.data;
+
+      if (intent === "clarify") {
+        // Just asking a question back — no engine ran yet, so there's no
+        // result card to show, and "Routed to" would be misleading.
+        addChatBubble("assistant", reply);
+        return;
+      }
+
       const label = INTENT_LABELS[intent] || intent;
       let cardHtml = "";
       try {
@@ -284,5 +292,18 @@ if (chatForm) {
     } finally {
       sendBtn.disabled = false;
     }
+  });
+}
+
+const chatResetBtn = document.getElementById("chat-reset");
+if (chatResetBtn) {
+  chatResetBtn.addEventListener("click", async () => {
+    try {
+      const dispatch = await bootPromise;
+      dispatch("chat_reset", "{}");
+    } catch {
+      /* If the engine never finished booting, there's nothing to reset yet. */
+    }
+    chatLog.innerHTML = "";
   });
 }
