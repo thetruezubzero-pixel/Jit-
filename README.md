@@ -20,12 +20,18 @@ the browser** via [Pyodide](https://pyodide.org) (Python compiled to
 WebAssembly) — there is no backend to host, so it works from an iPhone,
 Android, or desktop browser via GitHub Pages alone, at no cost:
 
-1. In this repo: **Settings → Pages → Build and deployment → Source: GitHub
-   Actions**. (One-time; nobody else needs to touch this again.)
-2. Push to `main` or any `claude/**` branch. `.github/workflows/pages.yml`
+1. Push to `main` or any `claude/**` branch. `.github/workflows/pages.yml`
    vendors the Pyodide runtime, syncs the current `jit/` source into `docs/`,
-   and deploys it — so the site can never drift from the real engines.
+   and force-pushes the result to a `gh-pages` branch — so the site can
+   never drift from the real engines.
+2. In this repo (one-time, after the first successful run above creates the
+   `gh-pages` branch): **Settings → Pages → Build and deployment → Source:
+   Deploy from a branch → Branch: `gh-pages` → folder: `/ (root)`**.
 3. Open `https://thetruezubzero-pixel.github.io/Jit-/` on any device.
+
+(This deploys via a plain `git push` to a branch rather than GitHub's newer
+Pages Deployments API, since that API's health-check call is a single point
+of failure the site doesn't otherwise need.)
 
 Every module gets its own tab (Tax Calculator, Deductions, AMT, Quarterly,
 Legal Document, Compliance, Filing Status, Optimizer, Audit Risk) plus a

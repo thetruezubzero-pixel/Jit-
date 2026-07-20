@@ -5,6 +5,17 @@ name: Deploy Pages
 # (Python compiled to WebAssembly) — no server, so this workflow is the only
 # "backend" the app needs: it vendors the Pyodide runtime and syncs the
 # pure-Python jit source into docs/ at build time, then publishes docs/ as-is.
+#
+# Deploys by force-pushing the built docs/ to a gh-pages branch (plain git),
+# not via the newer Pages Deployments API (actions/configure-pages +
+# actions/deploy-pages). That API had a sustained outage the first time this
+# was set up, and its failure mode is opaque (a bare "no server available"
+# from a health-check call this workflow doesn't otherwise need). Pushing to
+# a branch is the older, plainer mechanism GitHub Pages has supported for
+# years and has no dependency on that API at all.
+#
+# One-time repo setting this requires: Settings -> Pages -> Build and
+# deployment -> Source: "Deploy from a branch" -> Branch: gh-pages, folder /.
 on:
   push:
     branches: [main, "claude/**"]
@@ -16,16 +27,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -51,21 +60,10 @@ jobs:
       - name: Sync the jit engine source for the browser
         run: bash scripts/sync_pyodide_source.sh
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy docs/ to the gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: docs
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages
+          force_orphan: true
