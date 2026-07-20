@@ -526,6 +526,42 @@ function addChatBubble(role, html) {
   return bubble;
 }
 
+// ---------------------------------------------------------------------
+// Browse topics — nobody guesses that "SALT cap" or "NIIT" are things
+// worth asking about unless they already study tax law. This lists every
+// built-in fact in plain language (bridge.py's fact_topics(), not a
+// restated acronym) so a topic can be found by browsing instead of
+// requiring the exact jargon term up front.
+// ---------------------------------------------------------------------
+const topicsList = document.getElementById("topics-list");
+
+async function loadTopics() {
+  if (!topicsList) return;
+  try {
+    const dispatch = await bootPromise;
+    const response = JSON.parse(dispatch("fact_topics", "{}"));
+    if (!response.success) return;
+    topicsList.innerHTML = response.data.topics
+      .map(
+        (t) =>
+          `<button type="button" class="topic-chip" data-query="${t.query.replace(/"/g, "&quot;")}">${t.label}</button>`
+      )
+      .join("");
+  } catch {
+    /* Topic browsing is a nice-to-have; a failure here shouldn't disrupt chat. */
+  }
+}
+loadTopics();
+
+if (topicsList) {
+  topicsList.addEventListener("click", (event) => {
+    const chip = event.target.closest(".topic-chip");
+    if (!chip) return;
+    chatInput.value = chip.dataset.query;
+    chatForm.requestSubmit();
+  });
+}
+
 // A short, human-readable gloss on bridge.py's routing_reason/matched_keywords
 // — real, inspectable routing metadata (not a fabricated confidence score),
 // surfaced here so "why did it answer that" isn't a black box.
