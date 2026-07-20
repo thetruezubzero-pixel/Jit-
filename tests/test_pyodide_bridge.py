@@ -664,37 +664,6 @@ class TestFactLookup:
         assert "$69,000" in response["data"]["reply"]
 
 
-class TestFactTopics:
-    """fact_topics() exists to solve real undiscoverability: nobody guesses
-    that "SALT cap" or "QBI" or "NIIT" are things worth asking about unless
-    they already know tax jargon. It's a plain-language, browsable index —
-    every topic's query must round-trip through chat() to the exact fact
-    it's labeled for."""
-
-    @pytest.fixture(autouse=True)
-    def reset_conversation(self):
-        bridge.dispatch("chat_reset", "{}")
-        yield
-        bridge.dispatch("chat_reset", "{}")
-
-    def test_returns_a_topic_per_fact_alphabetized_by_label(self):
-        response = _run("fact_topics", {})
-        assert response["success"] is True
-        topics = response["data"]["topics"]
-        assert len(topics) == len(bridge._FACTS)
-        labels = [t["label"] for t in topics]
-        assert labels == sorted(labels)
-
-    def test_every_topics_query_resolves_back_through_chat_to_a_fact(self):
-        topics = _run("fact_topics", {})["data"]["topics"]
-        for topic in topics:
-            response = _run("chat", {"message": topic["query"]})
-            assert response["data"]["intent"] == "fact", (
-                f"topic {topic['label']!r} query {topic['query']!r} didn't "
-                f"route to a fact: {response['data']}"
-            )
-
-
 class TestSessionInsights:
     """session_insights() is plain statistics over this session's own chat
     history (income variance, deduction ratio, self-employment without a

@@ -178,22 +178,6 @@ button.run:disabled { opacity: 0.6; }
 .kv .big { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
 .tag-list { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.6rem; }
 .tag { background: rgba(91, 140, 255, 0.15); color: var(--accent); border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.75rem; }
-
-.topics-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
-.topic-chip {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.78rem;
-  text-align: left;
-  cursor: pointer;
-}
-.topic-chip:hover, .topic-chip:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 .list-item { font-size: 0.85rem; padding: 0.3rem 0; border-bottom: 1px dashed var(--border); }
 .list-item:last-child { border-bottom: none; }
 

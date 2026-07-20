@@ -445,7 +445,6 @@ _FACTS = [
             "($1,950 if single/HOH)."
         ),
         "citation": "IRC §63(c)",
-        "label": "The automatic deduction everyone gets, no receipts needed",
     },
     {
         "keywords": ("salt cap", "salt deduction"),
@@ -457,7 +456,6 @@ _FACTS = [
             "pay and deduct state tax at the business level instead."
         ),
         "citation": "IRC §164(b)(6)",
-        "label": "Why you can't deduct all your state and local taxes",
     },
     {
         "keywords": ("backdoor roth",),
@@ -471,7 +469,6 @@ _FACTS = [
             "all your traditional IRA funds, not just the new nondeductible one."
         ),
         "citation": "IRC §408A(c)(3) (conversion limit repealed); §408(d)(3) (conversion)",
-        "label": "How high earners still get money into a Roth IRA",
     },
     {
         "keywords": ("ptet", "pass-through entity tax", "pass through entity tax"),
@@ -484,7 +481,6 @@ _FACTS = [
             "with an income tax now offer some version of this."
         ),
         "citation": "IRS Notice 2020-75 (state PTET workaround to the IRC §164(b)(6) SALT cap)",
-        "label": "How business owners get around the state-tax deduction cap",
     },
     {
         "keywords": ("401k limit", "401(k) limit", "401k contribution", "elective deferral"),
@@ -494,7 +490,6 @@ _FACTS = [
             "limit is $69,000 ($76,500 with catch-up)."
         ),
         "citation": "IRC §402(g)",
-        "label": "How much you can put into your 401(k) each year",
     },
     {
         "keywords": ("ira limit", "ira contribution"),
@@ -505,7 +500,6 @@ _FACTS = [
             "jointly)."
         ),
         "citation": "IRC §219(b)(5)(A)",
-        "label": "How much you can put into an IRA each year",
     },
     {
         "keywords": ("hsa limit", "hsa contribution"),
@@ -515,7 +509,6 @@ _FACTS = [
             "HSA-eligible high-deductible health plan."
         ),
         "citation": "IRC §223(b)",
-        "label": "How much you can put into a health savings account",
     },
     {
         "keywords": ("capital gains rate", "long term capital gains", "ltcg rate"),
@@ -527,7 +520,6 @@ _FACTS = [
             "$250,000 MAGI."
         ),
         "citation": "IRC §1(h)",
-        "label": "Tax rates on profit from selling investments you held a while",
     },
     {
         "keywords": ("amt exemption",),
@@ -538,7 +530,6 @@ _FACTS = [
             "the exemption, 28% above that."
         ),
         "citation": "IRC §55(d)",
-        "label": "The parallel tax system that can erase some deductions",
     },
     {
         "keywords": ("fbar threshold", "fbar limit"),
@@ -550,7 +541,6 @@ _FACTS = [
             "any-time for a single filer living in the US)."
         ),
         "citation": "31 U.S.C. §5314 (FBAR, not the IRC); IRC §6038D (FATCA Form 8938)",
-        "label": "When you have to report a foreign bank account",
     },
     {
         "keywords": ("qbi", "qualified business income", "section 199a", "199a deduction"),
@@ -564,7 +554,6 @@ _FACTS = [
             "fully phased out."
         ),
         "citation": "IRC §199A",
-        "label": "A deduction for small-business and freelance income",
     },
     {
         "keywords": ("child tax credit",),
@@ -575,7 +564,6 @@ _FACTS = [
             "filing jointly)."
         ),
         "citation": "IRC §24",
-        "label": "How much you get back per child on your taxes",
     },
     {
         "keywords": ("eitc", "earned income tax credit", "earned income credit"),
@@ -586,7 +574,6 @@ _FACTS = [
             "filing jointly) depending on number of qualifying children."
         ),
         "citation": "IRC §32",
-        "label": "A tax credit for lower-income working people",
     },
     {
         "keywords": (
@@ -602,7 +589,6 @@ _FACTS = [
             "$43,000)."
         ),
         "citation": "IRC §21",
-        "label": "A credit for daycare or childcare costs",
     },
     {
         "keywords": ("american opportunity credit", "aotc"),
@@ -615,7 +601,6 @@ _FACTS = [
             "education."
         ),
         "citation": "IRC §25A(b)",
-        "label": "A credit for the first 4 years of college",
     },
     {
         "keywords": ("lifetime learning credit",),
@@ -627,7 +612,6 @@ _FACTS = [
             "limit on the number of years you can claim it."
         ),
         "citation": "IRC §25A(c)",
-        "label": "A credit for any education after high school, no year limit",
     },
     {
         "keywords": ("estate tax exemption", "estate tax exclusion"),
@@ -639,7 +623,6 @@ _FACTS = [
             "legislation."
         ),
         "citation": "IRC §2010(c)",
-        "label": "How much you can leave heirs before estate tax kicks in",
     },
     {
         "keywords": ("gift tax exclusion", "annual gift exclusion"),
@@ -650,7 +633,6 @@ _FACTS = [
             "tax exclusion rather than triggering gift tax immediately."
         ),
         "citation": "IRC §2503(b)",
-        "label": "How much you can give someone each year with no tax paperwork",
     },
     {
         "keywords": ("529 plan", "529 contribution"),
@@ -663,7 +645,6 @@ _FACTS = [
             "using more exclusion in years 2-5."
         ),
         "citation": "IRC §529",
-        "label": "Tax-free growth for education savings",
     },
     {
         "keywords": ("self employment tax rate", "self-employment tax rate", "se tax rate"),
@@ -675,7 +656,6 @@ _FACTS = [
             "line."
         ),
         "citation": "IRC §1401",
-        "label": "The extra tax freelancers and 1099 workers pay",
     },
     {
         "keywords": ("capital loss deduction", "capital loss limit"),
@@ -686,7 +666,6 @@ _FACTS = [
             "carry forward indefinitely to future tax years."
         ),
         "citation": "IRC §1211(b); §1212",
-        "label": "How much of an investment loss you can deduct against income",
     },
     {
         "keywords": ("charitable deduction limit", "charitable contribution limit"),
@@ -697,7 +676,6 @@ _FACTS = [
             "to 5 years."
         ),
         "citation": "IRC §170(b)",
-        "label": "How much of your income charitable giving can offset",
     },
     {
         "keywords": ("kiddie tax",),
@@ -708,7 +686,6 @@ _FACTS = [
             "is taxed at the child's own rate."
         ),
         "citation": "IRC §1(g)",
-        "label": "Why a child's investment income can get taxed at the parents' rate",
     },
     {
         "keywords": ("social security wage base", "ss wage base"),
@@ -719,7 +696,6 @@ _FACTS = [
             "wage cap."
         ),
         "citation": "IRC §3121(a)(1) (FICA wage base)",
-        "label": "The income level where Social Security tax stops applying",
     },
     {
         "keywords": ("niit", "net investment income tax"),
@@ -730,7 +706,6 @@ _FACTS = [
             "or $125,000 (married filing separately)."
         ),
         "citation": "IRC §1411",
-        "label": "An extra tax on investment income for high earners",
     },
     {
         "keywords": ("additional medicare tax",),
@@ -741,7 +716,6 @@ _FACTS = [
             "employer-matched and the thresholds aren't indexed for inflation."
         ),
         "citation": "IRC §3101(b)(2)",
-        "label": "An extra Medicare tax on high wages",
     },
     {
         "keywords": ("mortgage interest deduction", "mortgage interest limit"),
@@ -752,7 +726,6 @@ _FACTS = [
             "are grandfathered at the older $1 million cap."
         ),
         "citation": "IRC §163(h)(3)",
-        "label": "How much mortgage interest you can deduct",
     },
     {
         "keywords": ("student loan interest deduction",),
@@ -763,7 +736,6 @@ _FACTS = [
             "jointly) in 2024; unavailable if married filing separately."
         ),
         "citation": "IRC §221",
-        "label": "Deducting interest you paid on student loans",
     },
     {
         "keywords": (
@@ -779,7 +751,6 @@ _FACTS = [
             "2 of the last 5 years before the sale."
         ),
         "citation": "IRC §121",
-        "label": "Selling your home tax-free up to a limit",
     },
     {
         "keywords": ("wash sale rule", "wash sale"),
@@ -791,7 +762,6 @@ _FACTS = [
             "replacement shares."
         ),
         "citation": "IRC §1091",
-        "label": "Why re-buying a stock too fast can cancel your tax loss",
     },
     {
         "keywords": ("1031 exchange", "like kind exchange", "like-kind exchange"),
@@ -803,7 +773,6 @@ _FACTS = [
             "days. Only real property qualifies since the 2017 tax law."
         ),
         "citation": "IRC §1031",
-        "label": "Deferring tax when you swap one investment property for another",
     },
     {
         "keywords": (
@@ -818,7 +787,6 @@ _FACTS = [
             "abroad in a 12-month period)."
         ),
         "citation": "IRC §911",
-        "label": "Excluding foreign income if you live and work abroad",
     },
     {
         "keywords": ("section 179", "bonus depreciation"),
@@ -831,7 +799,6 @@ _FACTS = [
             "legislation."
         ),
         "citation": "IRC §179 (bonus depreciation is a separate provision, IRC §168(k))",
-        "label": "Writing off business equipment immediately instead of over years",
     },
     {
         "keywords": ("net operating loss", "nol carryforward", "nol carryback"),
@@ -842,7 +809,6 @@ _FACTS = [
             "certain farming and insurance-company losses)."
         ),
         "citation": "IRC §172",
-        "label": "Using this year's business loss to offset future years' taxes",
     },
     {
         "keywords": ("mega backdoor roth",),
@@ -855,7 +821,6 @@ _FACTS = [
             "regular backdoor Roth's $7,000 IRA cap."
         ),
         "citation": "IRC §401(k); §402A(c)(4) (in-plan Roth rollover)",
-        "label": "A much bigger version of the backdoor Roth, via your 401(k)",
     },
     {
         "keywords": ("educator expense deduction",),
@@ -865,7 +830,6 @@ _FACTS = [
             "educators married filing jointly can each claim their own $300."
         ),
         "citation": "IRC §62(a)(2)(D)",
-        "label": "Deducting classroom supplies you paid for yourself",
     },
     {
         "keywords": ("self employed health insurance", "self-employed health insurance"),
@@ -876,7 +840,6 @@ _FACTS = [
             "months they weren't eligible for an employer-subsidized plan."
         ),
         "citation": "IRC §162(l)",
-        "label": "Deducting your own health insurance if you're self-employed",
     },
     {
         "keywords": ("mileage rate", "standard mileage"),
@@ -887,7 +850,6 @@ _FACTS = [
             "not indexed for inflation)."
         ),
         "citation": "Annual IRS notice under IRC §162; §170(i) sets the charitable rate",
-        "label": "How much you can deduct per mile for driving",
     },
     {
         "keywords": ("home office deduction",),
@@ -901,7 +863,6 @@ _FACTS = [
             "exclusively for business."
         ),
         "citation": "IRC §280A(c)",
-        "label": "Deducting part of your home if you work from it",
     },
     {
         "keywords": ("roth ira income limit", "roth ira phase out", "roth ira phase-out"),
@@ -913,7 +874,6 @@ _FACTS = [
             "year)."
         ),
         "citation": "IRC §408A(c)(3)",
-        "label": "The income level where you lose the ability to contribute to a Roth",
     },
     {
         "keywords": (
@@ -930,7 +890,6 @@ _FACTS = [
             "is your spouse)? The deduction isn't limited by income."
         ),
         "citation": "IRC §219(g)",
-        "label": "The income level where your IRA deduction starts shrinking",
     },
     {
         "keywords": ("rmd", "rmd age", "required minimum distribution"),
@@ -942,7 +901,6 @@ _FACTS = [
             "promptly)."
         ),
         "citation": "IRC §401(a)(9)",
-        "label": "The age you're forced to start withdrawing retirement savings",
     },
     {
         "keywords": ("fsa limit", "fsa contribution"),
@@ -954,7 +912,6 @@ _FACTS = [
             "('use it or lose it')."
         ),
         "citation": "IRC §125(i)",
-        "label": "How much you can set aside pre-tax for medical expenses",
     },
     {
         "keywords": ("medical expense deduction", "medical expense threshold"),
@@ -967,7 +924,6 @@ _FACTS = [
             "here."
         ),
         "citation": "IRC §213",
-        "label": "How much of your medical bills you can actually deduct",
     },
     {
         "keywords": (
@@ -988,7 +944,6 @@ _FACTS = [
             "residence debt under separate rules."
         ),
         "citation": "IRC §61(a)(12) (income); exclusions under §108",
-        "label": "Why forgiven debt can count as taxable income",
     },
     {
         "keywords": ("bankruptcy discharge", "debt discharged in bankruptcy"),
@@ -1001,7 +956,6 @@ _FACTS = [
             "instead."
         ),
         "citation": "IRC §108(a)(1)(A)",
-        "label": "Why debt wiped out in bankruptcy isn't taxed like other forgiven debt",
     },
     {
         "keywords": ("life insurance proceeds", "life insurance payout", "life insurance taxable"),
@@ -1013,7 +967,6 @@ _FACTS = [
             "estate for estate-tax purposes if they owned the policy."
         ),
         "citation": "IRC §101(a)",
-        "label": "Whether a life insurance payout is taxable",
     },
     {
         "keywords": (
@@ -1031,7 +984,6 @@ _FACTS = [
             "you up front — the benefit is what's taxed later."
         ),
         "citation": "IRC §104(a)(3) (self-paid, tax-free); §105(a) (employer-paid, taxable)",
-        "label": "Whether disability payments are taxable",
     },
     {
         "keywords": ("foreign tax credit", "ftc limitation"),
@@ -1047,7 +999,6 @@ _FACTS = [
             "forward 10."
         ),
         "citation": "IRC §901 (credit); §904 (limitation)",
-        "label": "Avoiding double tax when you already paid tax to another country",
     },
 ]
 
@@ -1653,30 +1604,12 @@ def session_insights(payload: dict) -> dict:
     }
 
 
-def fact_topics(payload: dict) -> dict:
-    """A plain-language, alphabetized index of every built-in fact topic.
-
-    Someone who doesn't already study tax law has no way to guess that
-    "SALT cap" or "QBI" or "NIIT" are things worth asking about — those
-    are answers you can only find by already knowing the jargon to search
-    for. This is the fix: browsable topics with human-readable labels
-    ("SALT Cap", not the raw keyword), each paired with a ready-to-send
-    query string that reuses the exact same keyword matching chat() does,
-    so clicking a topic gets exactly the same cited answer as typing it."""
-    topics = sorted(
-        ({"label": fact["label"], "query": fact["keywords"][0]} for fact in _FACTS),
-        key=lambda t: t["label"],
-    )
-    return {"topics": topics}
-
-
 _HANDLERS = {
     "chat": chat,
     "chat_reset": chat_reset,
     "chat_export_state": chat_export_state,
     "chat_import_state": chat_import_state,
     "session_insights": session_insights,
-    "fact_topics": fact_topics,
     "tax_calculate": tax_calculate,
     "deduction_optimize": deduction_optimize,
     "amt_calculate": amt_calculate,
