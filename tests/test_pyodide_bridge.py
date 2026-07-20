@@ -727,6 +727,23 @@ class TestFactLookup:
         assert follow_up["data"]["extracted"]["filing_status"] == "married_filing_jointly"
         assert follow_up["data"]["extracted"]["state"] == "NY"
 
+    def test_itemize_vs_standard_comparison_runs_the_calculator_not_the_fact(self):
+        # Regression: "standard deduction" is both a fact keyword and one
+        # of deduction_optimize's routing keywords, so a real comparison
+        # question with a real income figure used to always get the
+        # static fact and never actually run the optimizer.
+        response = _run(
+            "chat", {"message": "should I itemize or take the standard deduction on 90k income"}
+        )
+        assert response["data"]["intent"] == "deduction_optimize"
+        assert "recommended_method" in response["data"]["result"]
+
+    def test_plain_standard_deduction_question_still_answers_as_a_fact(self):
+        # The fix above must not break the ordinary case -- no "itemize"
+        # comparison cue, no amount, just the raw fact.
+        response = _run("chat", {"message": "what's the standard deduction"})
+        assert response["data"]["intent"] == "fact"
+
     def test_fact_lookup_needs_no_amount_even_with_no_context(self):
         response = _run("chat", {"message": "what's the standard deduction?"})
         assert response["data"]["intent"] == "fact"

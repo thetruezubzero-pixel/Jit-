@@ -1088,7 +1088,7 @@ def _match_fact(text: str) -> tuple[str, str] | None:
     best_len = -1
     for fact in _FACTS:
         for kw in fact["keywords"]:
-            if kw in lowered and len(kw) > best_len:
+            if _contains_keyword(lowered, kw) and len(kw) > best_len:
                 best_match = (fact["answer"], fact["citation"])
                 best_len = len(kw)
     return best_match
@@ -1370,22 +1370,34 @@ def chat(payload: dict) -> dict:
 
     fact_match = _match_fact(message)
     if fact_match is not None:
-        # A factual lookup ("what's the SALT cap") doesn't depend on the
-        # user's own numbers and shouldn't disturb whatever topic/amount is
-        # already remembered, so it's answered immediately, standalone. It
-        # does clear any pending suggestion, though — otherwise a later
-        # "yes" would resume a suggestion from before this topic-switch, as
-        # if it were still what "yes" was replying to.
-        _conversation_context["suggested_intent"] = None
-        fact_answer, fact_citation = fact_match
-        return {
-            "intent": "fact",
-            "routing_reason": "fact_lookup",
-            "citation": fact_citation,
-            "extracted": {"amount": None, "filing_status": None, "state": None},
-            "reply": fact_answer,
-            "result": {},
-        }
+        # "standard deduction" is both a fact keyword and one of
+        # deduction_optimize's routing keywords, so a real comparison
+        # question ("should I itemize or take the standard deduction on
+        # 90k") used to always get the static fact and never run the
+        # actual calculator. Only let the fact win when the message isn't
+        # also a genuine itemize-vs-standard comparison with a real income
+        # figure to compute against.
+        wants_computation = _has_any(message, "itemize", "itemized") and (
+            _extract_amount(message) is not None or _conversation_context["amount"] is not None
+        )
+        if not wants_computation:
+            # A factual lookup ("what's the SALT cap") doesn't depend on
+            # the user's own numbers and shouldn't disturb whatever
+            # topic/amount is already remembered, so it's answered
+            # immediately, standalone. It does clear any pending
+            # suggestion, though — otherwise a later "yes" would resume a
+            # suggestion from before this topic-switch, as if it were
+            # still what "yes" was replying to.
+            _conversation_context["suggested_intent"] = None
+            fact_answer, fact_citation = fact_match
+            return {
+                "intent": "fact",
+                "routing_reason": "fact_lookup",
+                "citation": fact_citation,
+                "extracted": {"amount": None, "filing_status": None, "state": None},
+                "reply": fact_answer,
+                "result": {},
+            }
 
     extracted_amount = _extract_amount(message)
     amount = extracted_amount if extracted_amount is not None else _conversation_context["amount"]
