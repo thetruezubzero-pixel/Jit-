@@ -39,19 +39,30 @@ def main():
     print("\n[1] INCOME PROCESSING")
     processor = IncomeProcessor()
     processor.add_w2(
-        amount=120_000, source="TechCorp Inc", tax_year=2024,
-        withheld_federal=22_000, withheld_state=7_000,
+        amount=120_000,
+        source="TechCorp Inc",
+        tax_year=2024,
+        withheld_federal=22_000,
+        withheld_state=7_000,
     )
     processor.add_1099_nec(
-        amount=15_000, source="Freelance Client LLC", tax_year=2024,
+        amount=15_000,
+        source="Freelance Client LLC",
+        tax_year=2024,
     )
-    processor.add_record(IncomeRecord(
-        income_type=IncomeType.DIVIDENDS_QUALIFIED,
-        amount=3_000, source="Brokerage", tax_year=2024,
-    ))
+    processor.add_record(
+        IncomeRecord(
+            income_type=IncomeType.DIVIDENDS_QUALIFIED,
+            amount=3_000,
+            source="Brokerage",
+            tax_year=2024,
+        )
+    )
     processor.add_capital_transaction(
-        proceeds=25_000, cost_basis=18_000,
-        source="Brokerage", tax_year=2024,
+        proceeds=25_000,
+        cost_basis=18_000,
+        source="Brokerage",
+        tax_year=2024,
         acquisition_date=date(2022, 6, 1),
         disposition_date=date(2024, 3, 15),
     )
@@ -69,11 +80,13 @@ def main():
     # -----------------------------------------------------------------------
     print("\n[2] FILING STATUS RECOMMENDATION")
     fs_tree = DecisionTree.build_filing_status_tree()
-    fs_result = fs_tree.evaluate({
-        "is_married": False,
-        "is_qualifying_surviving_spouse": False,
-        "has_qualifying_dependent": False,
-    })
+    fs_result = fs_tree.evaluate(
+        {
+            "is_married": False,
+            "is_qualifying_surviving_spouse": False,
+            "has_qualifying_dependent": False,
+        }
+    )
     print(f"  {fs_result.recommendation}")
     print(f"  Confidence: {fs_result.confidence:.0%}")
 
@@ -133,8 +146,10 @@ def main():
     if amt_result.is_subject_to_amt:
         print(f"  ⚠  AMT Owed: {format_currency(amt_result.amt_owed)}")
     else:
-        print(f"  ✓  Not subject to AMT (TMT: {format_currency(amt_result.tentative_minimum_tax)}, "
-              f"Regular Tax: {format_currency(tax_result.federal_income_tax)})")
+        print(
+            f"  ✓  Not subject to AMT (TMT: {format_currency(amt_result.tentative_minimum_tax)}, "
+            f"Regular Tax: {format_currency(tax_result.federal_income_tax)})"
+        )
 
     # -----------------------------------------------------------------------
     # 6. Quarterly Estimated Payments
@@ -215,12 +230,16 @@ def main():
     )
     print(f"  Current Tax:            {format_currency(optimization.current_estimated_tax)}")
     print(f"  Optimized Tax:          {format_currency(optimization.optimized_estimated_tax)}")
-    print(f"  Potential Savings:      {format_currency(optimization.total_savings)} "
-          f"({optimization.savings_percentage:.1f}%)")
+    print(
+        f"  Potential Savings:      {format_currency(optimization.total_savings)} "
+        f"({optimization.savings_percentage:.1f}%)"
+    )
     print("  Top Strategies:")
     for strategy in optimization.strategies[:5]:
-        print(f"    [{strategy.implementation_complexity.upper()}] {strategy.title}: "
-              f"{format_currency(strategy.estimated_savings)}")
+        print(
+            f"    [{strategy.implementation_complexity.upper()}] {strategy.title}: "
+            f"{format_currency(strategy.estimated_savings)}"
+        )
 
     print("\n" + "=" * 70)
     print("  Analysis Complete. Consult a qualified CPA or tax attorney for")

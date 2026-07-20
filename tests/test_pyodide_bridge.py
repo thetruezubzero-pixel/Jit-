@@ -272,6 +272,26 @@ class TestChat:
             response = _run("chat", {"message": message})
             assert response["success"] is True, f"message {message!r} raised: {response}"
 
+    def test_genuinely_unmatched_question_says_so_instead_of_guessing(self):
+        # Regression: this used to silently run a full multi-engine
+        # platform_analyze computation and present it as if it answered an
+        # off-topic question — now it should say plainly that nothing matched,
+        # without computing (or claiming) anything.
+        response = _run("chat", {"message": "150k, tell me something interesting"})
+        data = response["data"]
+        assert data["intent"] == "platform_analyze"
+        assert data["matched"] is False
+        assert data["result"] == {}
+        assert "not sure what you're asking" in data["reply"].lower()
+
+    def test_explicit_full_case_request_still_runs_all_engines(self):
+        response = _run("chat", {"message": "give me the full analysis on 150k"})
+        data = response["data"]
+        assert data["intent"] == "platform_analyze"
+        assert data["matched"] is True
+        assert "total_tax" in data["result"]["accounting"]
+        assert "Full case:" in data["reply"]
+
 
 class TestChatMemoryAndClarify:
     @pytest.fixture(autouse=True)

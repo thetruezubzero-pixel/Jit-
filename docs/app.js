@@ -217,21 +217,6 @@ const RENDERERS = {
   },
 };
 
-function renderResult(moduleName, resultEl, response) {
-  if (!response.success) {
-    resultEl.innerHTML = `<div class="error-box">${response.error}</div>`;
-    return;
-  }
-  const renderer = RENDERERS[moduleName] || renderGeneric;
-  try {
-    resultEl.innerHTML = renderer(response.data);
-  } catch (err) {
-    resultEl.innerHTML =
-      renderGeneric(response.data) +
-      `<pre class="raw">${JSON.stringify(response.data, null, 2)}</pre>`;
-  }
-}
-
 // ---------------------------------------------------------------------
 // Optional AI assist (Google Gemini) — only used for questions the
 // rule-based router genuinely can't classify. The API key is entered by
@@ -464,21 +449,26 @@ if (chatForm) {
         return;
       }
 
-      if (intent === "platform_analyze" && matched === false && isAiAssistEnabled() && getGeminiKey()) {
-        // The rule-based router found no real topic keyword here — rather
-        // than guessing a full-case analysis against made-up numbers, hand
-        // this one genuinely unmatched question to Gemini instead.
-        try {
-          const aiReply = await askGemini(getGeminiKey(), message);
-          addChatBubble(
-            "assistant",
-            `<span class="intent-tag">AI-assisted (Gemini) — not verified by Jit's calculators</span>${aiReply.replace(/</g, "&lt;")}`
-          );
-        } catch (err) {
-          addChatBubble(
-            "assistant",
-            `<div class="error-box">${(err && err.message) || err}</div>`
-          );
+      if (intent === "platform_analyze" && matched === false) {
+        // The rule-based router found no real topic keyword here — bridge.py
+        // doesn't run (or claim) a full-case computation for this, so there's
+        // never a card to show. Either hand it to Gemini if configured, or
+        // just relay the "not sure what you're asking" reply plainly.
+        if (isAiAssistEnabled() && getGeminiKey()) {
+          try {
+            const aiReply = await askGemini(getGeminiKey(), message);
+            addChatBubble(
+              "assistant",
+              `<span class="intent-tag">AI-assisted (Gemini) — not verified by Jit's calculators</span>${aiReply.replace(/</g, "&lt;")}`
+            );
+          } catch (err) {
+            addChatBubble(
+              "assistant",
+              `<div class="error-box">${(err && err.message) || err}</div>`
+            );
+          }
+        } else {
+          addChatBubble("assistant", reply);
         }
         return;
       }

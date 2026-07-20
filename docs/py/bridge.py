@@ -878,7 +878,10 @@ def chat(payload: dict) -> dict:
             if top
             else "No specific optimization strategies applied for this scenario."
         )
-    else:
+    elif intent_matched:
+        # A genuine "give me everything" request (matched the platform_analyze
+        # keywords, e.g. "full analysis") — this is the one case worth
+        # actually running all three engines for.
         result = platform_analyze(
             {
                 "case_id": "chat-case",
@@ -897,6 +900,17 @@ def chat(payload: dict) -> dict:
             f"Full case: total tax ${result['accounting']['total_tax']:,.2f}, "
             f"legal risk score {result['legal']['risk_score']:.2f}, "
             f"recommendation: {result['algorithms']['primary_recommendation']}."
+        )
+    else:
+        # Nothing in the message matched any topic keyword — say so plainly
+        # instead of quietly running a full-case computation the user never
+        # asked for and presenting it as if it answered their question.
+        result = {}
+        reply = (
+            "I'm not sure what you're asking. Try a question about tax, "
+            "deductions, AMT, quarterly estimates, a contract or document, "
+            "compliance (FBAR/FATCA), filing status, audit risk, tax-saving "
+            "strategies, or a specific tax-law fact."
         )
 
     _record_session_entry(intent, amount, self_employed, result)
