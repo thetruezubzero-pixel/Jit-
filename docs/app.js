@@ -1,5 +1,14 @@
 import { loadPyodide } from "./vendor/pyodide/pyodide.mjs";
 
+// Caches the ~14MB Pyodide runtime + jit source after the first visit, so
+// repeat visits (the common case on a phone) boot from cache instead of
+// re-downloading everything.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {
+    /* Non-fatal — the site still works without offline/repeat-visit caching. */
+  });
+}
+
 const statusEl = document.getElementById("engine-status");
 
 function setStatus(text, cls) {
