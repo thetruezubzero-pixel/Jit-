@@ -306,7 +306,14 @@ async function refreshSessionInsights() {
     const dispatch = await bootPromise;
     const response = JSON.parse(dispatch("session_insights", "{}"));
     if (!response.success) return;
-    const { insights } = response.data;
+    const { insights, attention_level } = response.data;
+    // attention_level cross-references how many independent signals fired
+    // at once into one summary level — reflected here as a border color
+    // rather than making the user read every flag to gauge how urgent it is.
+    insightsPanel.classList.remove("attention-mild", "attention-elevated");
+    if (attention_level && attention_level !== "clear") {
+      insightsPanel.classList.add(`attention-${attention_level}`);
+    }
     insightsPanel.innerHTML = insights.length
       ? `<h3>Session insights</h3><ul>${insights.map((i) => `<li>${i.replace(/</g, "&lt;")}</li>`).join("")}</ul>`
       : "";

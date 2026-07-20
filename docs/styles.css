@@ -186,6 +186,12 @@ body.compact .list-item { padding: 0.18rem 0; font-size: 0.78rem; }
 .insights-panel ul { margin: 0; padding-left: 1.1rem; }
 .insights-panel li { margin: 0.25rem 0; }
 
+/* attention_level cross-references how many independent session-insight
+   signals fired at once into one summary level, shown here as a border
+   accent rather than making the flags themselves louder. */
+.insights-panel.attention-mild { border-left: 3px solid #d9a441; }
+.insights-panel.attention-elevated { border-left: 3px solid var(--danger); background: rgba(255, 107, 107, 0.08); }
+
 details.settings {
   margin-top: 1rem;
   font-size: 0.85rem;

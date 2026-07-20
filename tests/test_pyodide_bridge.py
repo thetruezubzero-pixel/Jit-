@@ -417,6 +417,52 @@ class TestConversationalSuggestions:
         assert response["data"]["intent"] != "risk_assess"
 
 
+class TestRoutingTransparency:
+    """chat() labels *why* it routed a message the way it did
+    (routing_reason) and, for a genuine keyword match, exactly which
+    keyword(s) triggered it (matched_keywords) — real, inspectable routing
+    metadata, not a fabricated confidence score."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_keyword_match_reports_the_matched_keyword(self):
+        response = _run("chat", {"message": "what's my tax on 150k"})
+        data = response["data"]
+        assert data["routing_reason"] == "keyword_match"
+        assert "tax" in data["matched_keywords"]["tax_calculate"]
+
+    def test_compound_reports_matched_keywords_for_both_intents(self):
+        response = _run(
+            "chat", {"message": "should I itemize my deductions and am I at audit risk on 150k"}
+        )
+        data = response["data"]
+        assert data["routing_reason"] == "keyword_match"
+        assert set(data["matched_keywords"].keys()) == {"deduction_optimize", "risk_assess"}
+
+    def test_resumed_suggestion_is_labeled_distinctly(self):
+        _run("chat", {"message": "what's my tax on 150k"})
+        response = _run("chat", {"message": "yes"})
+        assert response["data"]["routing_reason"] == "resumed_suggestion"
+        assert response["data"]["matched_keywords"] == {}
+
+    def test_resumed_pending_clarify_is_labeled_distinctly(self):
+        _run("chat", {"message": "am I at audit risk?"})  # clarify, no amount yet
+        response = _run("chat", {"message": "150k"})
+        assert response["data"]["routing_reason"] == "resumed_pending_clarify"
+
+    def test_unmatched_fallback_is_labeled_distinctly(self):
+        response = _run("chat", {"message": "150k, tell me something interesting"})
+        assert response["data"]["routing_reason"] == "unmatched"
+
+    def test_fact_lookup_is_labeled_distinctly(self):
+        response = _run("chat", {"message": "what's the SALT cap?"})
+        assert response["data"]["routing_reason"] == "fact_lookup"
+
+
 class TestChatMemoryAndClarify:
     @pytest.fixture(autouse=True)
     def reset_conversation(self):
@@ -657,6 +703,26 @@ class TestSessionInsights:
         response = _run("session_insights", {})
         insights = " ".join(response["data"]["insights"])
         assert "haven't run a compliance check" not in insights
+
+    def test_no_insights_means_clear_attention_level(self):
+        response = _run("session_insights", {})
+        assert response["data"]["attention_level"] == "clear"
+
+    def test_one_insight_means_mild_attention_level(self):
+        _run("chat", {"message": "I own a business making 300k, how can I save on taxes?"})
+        response = _run("session_insights", {})
+        assert response["data"]["attention_level"] == "mild"
+
+    def test_two_or_more_insights_means_elevated_attention_level(self):
+        # Cross-references two independent signals firing at once
+        # (self-employed with no risk/deduction check, business owner with
+        # no compliance check) into one summary level.
+        message = "I am self employed and own a business making 300k, how can I save on taxes?"
+        _run("chat", {"message": message})
+        response = _run("session_insights", {})
+        data = response["data"]
+        assert len(data["insights"]) >= 2
+        assert data["attention_level"] == "elevated"
 
 
 class TestChatStatePersistence:
