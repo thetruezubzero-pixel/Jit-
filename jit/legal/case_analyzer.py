@@ -18,14 +18,14 @@ class CourtLevel(str, Enum):
     """U.S. federal court hierarchy level."""
 
     US_SUPREME_COURT = "us_supreme_court"
-    US_CIRCUIT_COURT = "us_circuit_court"        # Federal Courts of Appeal
-    US_DISTRICT_COURT = "us_district_court"       # Federal District Courts
+    US_CIRCUIT_COURT = "us_circuit_court"  # Federal Courts of Appeal
+    US_DISTRICT_COURT = "us_district_court"  # Federal District Courts
     US_TAX_COURT = "us_tax_court"
     US_BANKRUPTCY_COURT = "us_bankruptcy_court"
     STATE_SUPREME_COURT = "state_supreme_court"
     STATE_APPEALS_COURT = "state_appeals_court"
     STATE_TRIAL_COURT = "state_trial_court"
-    ADMINISTRATIVE = "administrative"             # ALJ, NLRB, IRS Appeals, etc.
+    ADMINISTRATIVE = "administrative"  # ALJ, NLRB, IRS Appeals, etc.
 
 
 # Court authority weights for precedent scoring
@@ -196,15 +196,12 @@ class CaseAnalyzer:
 
             if area_of_law:
                 area_match = any(
-                    area_of_law.lower() in h.area_of_law.lower()
-                    for h in case.holdings
+                    area_of_law.lower() in h.area_of_law.lower() for h in case.holdings
                 )
                 if not area_match:
                     continue
 
-            score, matched_kws, explanation = self._score_relevance(
-                case, query_keywords
-            )
+            score, matched_kws, explanation = self._score_relevance(case, query_keywords)
             if score > 0:
                 precedents.append(
                     Precedent(
@@ -216,9 +213,7 @@ class CaseAnalyzer:
                 )
 
         # Sort by relevance score, then authority weight
-        precedents.sort(
-            key=lambda p: (p.relevance_score, p.case.authority_weight), reverse=True
-        )
+        precedents.sort(key=lambda p: (p.relevance_score, p.case.authority_weight), reverse=True)
         return precedents[:max_results]
 
     def get_case_by_citation(self, citation: str) -> Optional[CaseRecord]:
@@ -227,9 +222,7 @@ class CaseAnalyzer:
 
     def get_citing_cases(self, citation: str) -> List[CaseRecord]:
         """Find all cases that cite the given citation."""
-        return [
-            c for c in self._cases if citation in (c.cases_cited or [])
-        ]
+        return [c for c in self._cases if citation in (c.cases_cited or [])]
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -269,8 +262,23 @@ class CaseAnalyzer:
     def _tokenize(self, text: str) -> List[str]:
         """Tokenize a query into meaningful keywords."""
         stop_words = {
-            "the", "a", "an", "of", "in", "to", "for", "is", "are",
-            "was", "and", "or", "but", "with", "that", "this", "it",
+            "the",
+            "a",
+            "an",
+            "of",
+            "in",
+            "to",
+            "for",
+            "is",
+            "are",
+            "was",
+            "and",
+            "or",
+            "but",
+            "with",
+            "that",
+            "this",
+            "it",
         }
         tokens = re.findall(r"[a-zA-Z]{3,}", text.lower())
         return [t for t in tokens if t not in stop_words]
@@ -297,7 +305,8 @@ class CaseAnalyzer:
         """Extract legal issues from the text."""
         issues: List[str] = []
         issue_patterns = [
-            r"[Tt]he\s+(?:sole\s+)?(?:issue|question)\s+(?:before\s+(?:the\s+)?(?:court|us)\s+)?is\s+([^.]+)\.",
+            r"[Tt]he\s+(?:sole\s+)?(?:issue|question)\s+"
+            r"(?:before\s+(?:the\s+)?(?:court|us)\s+)?is\s+([^.]+)\.",
             r"[Ww]e\s+(?:must\s+)?(?:decide|determine|consider)\s+(?:whether\s+)?([^.]+)\.",
         ]
         for pattern in issue_patterns:
@@ -331,14 +340,39 @@ class CaseAnalyzer:
     def _extract_keywords(self, text: str) -> List[str]:
         """Extract domain keywords from case text."""
         domain_terms = [
-            "income", "deduction", "gross income", "taxable income", "basis",
-            "realization", "recognition", "exclusion", "exemption", "credit",
-            "capital gain", "ordinary income", "property", "transaction",
-            "sham", "substance over form", "business purpose",
-            "step transaction", "assignment of income", "constructive receipt",
-            "accrual", "cash method", "at-risk", "passive activity",
-            "negligence", "fraud", "willful", "penalty", "statute of limitations",
-            "contract", "damages", "breach", "consideration",
+            "income",
+            "deduction",
+            "gross income",
+            "taxable income",
+            "basis",
+            "realization",
+            "recognition",
+            "exclusion",
+            "exemption",
+            "credit",
+            "capital gain",
+            "ordinary income",
+            "property",
+            "transaction",
+            "sham",
+            "substance over form",
+            "business purpose",
+            "step transaction",
+            "assignment of income",
+            "constructive receipt",
+            "accrual",
+            "cash method",
+            "at-risk",
+            "passive activity",
+            "negligence",
+            "fraud",
+            "willful",
+            "penalty",
+            "statute of limitations",
+            "contract",
+            "damages",
+            "breach",
+            "consideration",
         ]
         text_lower = text.lower()
         return [t for t in domain_terms if t in text_lower]

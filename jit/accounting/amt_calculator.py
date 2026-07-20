@@ -8,10 +8,9 @@ including AMTI computation, exemption phase-outs, and AMT credit tracking.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from jit.accounting.tax_calculator import FilingStatus
-
 
 # 2024 AMT exemption amounts
 AMT_EXEMPTIONS: Dict[FilingStatus, float] = {
@@ -89,14 +88,14 @@ class AMTCalculator:
         regular_tax: float,
         filing_status: FilingStatus = FilingStatus.SINGLE,
         # Common AMT adjustments / preference items
-        iso_bargain_element: float = 0.0,          # Incentive stock option spread
-        accelerated_depreciation: float = 0.0,     # Excess depreciation (Form 4562)
+        iso_bargain_element: float = 0.0,  # Incentive stock option spread
+        accelerated_depreciation: float = 0.0,  # Excess depreciation (Form 4562)
         percentage_depletion_excess: float = 0.0,  # Oil & gas depletion
-        tax_exempt_interest: float = 0.0,          # Private activity bond interest
-        salt_deduction_claimed: float = 0.0,       # SALT (not deductible for AMT)
-        misc_itemized_deductions: float = 0.0,     # Eliminated for AMT
-        standard_deduction_claimed: float = 0.0,   # Not allowed for AMT
-        long_term_capital_gains: float = 0.0,      # Excluded from AMT rate
+        tax_exempt_interest: float = 0.0,  # Private activity bond interest
+        salt_deduction_claimed: float = 0.0,  # SALT (not deductible for AMT)
+        misc_itemized_deductions: float = 0.0,  # Eliminated for AMT
+        standard_deduction_claimed: float = 0.0,  # Not allowed for AMT
+        long_term_capital_gains: float = 0.0,  # Excluded from AMT rate
         qualified_dividends: float = 0.0,
     ) -> AMTResult:
         """
@@ -136,9 +135,7 @@ class AMTCalculator:
         # Add back SALT (not deductible for AMT)
         amti += salt_deduction_claimed
         if salt_deduction_claimed > 0:
-            adjustment_items.append(
-                f"SALT deduction add-back: +${salt_deduction_claimed:,.0f}"
-            )
+            adjustment_items.append(f"SALT deduction add-back: +${salt_deduction_claimed:,.0f}")
 
         # Add back miscellaneous itemized deductions
         amti += misc_itemized_deductions
@@ -168,9 +165,7 @@ class AMTCalculator:
 
         if tax_exempt_interest > 0:
             amti += tax_exempt_interest
-            preference_items.append(
-                f"Private activity bond interest: +${tax_exempt_interest:,.0f}"
-            )
+            preference_items.append(f"Private activity bond interest: +${tax_exempt_interest:,.0f}")
 
         amti_before_exemption = max(0.0, amti)
 
@@ -242,9 +237,7 @@ class AMTCalculator:
         if ordinary_amti <= breakpoint:
             ordinary_tmt = ordinary_amti * AMT_RATE_1
         else:
-            ordinary_tmt = (
-                breakpoint * AMT_RATE_1 + (ordinary_amti - breakpoint) * AMT_RATE_2
-            )
+            ordinary_tmt = breakpoint * AMT_RATE_1 + (ordinary_amti - breakpoint) * AMT_RATE_2
 
         # Preferred income taxed at regular capital gains rates (approx 15%)
         preferred_tmt = preferred_income * 0.15

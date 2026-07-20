@@ -12,20 +12,19 @@ from typing import Dict, List, Optional
 
 from jit.accounting.tax_calculator import FilingStatus
 
-
 # 2024 Underpayment penalty rate (approximately; varies by quarter)
 UNDERPAYMENT_PENALTY_RATE = 0.08  # 8% annualized (Fed funds + 3 pp)
 
 # Safe harbor thresholds
 PRIOR_YEAR_AGI_HIGH_INCOME_THRESHOLD = 150_000  # Prior year AGI
 SAFE_HARBOR_HIGH_INCOME_RATE = 1.10  # 110% of prior year tax
-SAFE_HARBOR_NORMAL_RATE = 1.00   # 100% of prior year tax
+SAFE_HARBOR_NORMAL_RATE = 1.00  # 100% of prior year tax
 CURRENT_YEAR_SAFE_HARBOR = 0.90  # 90% of current year tax
 
 # 2024 Quarterly due dates
 QUARTERLY_DUE_DATES = {
-    1: "April 15, 2024",    # Q1: Jan 1 – Mar 31
-    2: "June 17, 2024",     # Q2: Apr 1 – May 31
+    1: "April 15, 2024",  # Q1: Jan 1 – Mar 31
+    2: "June 17, 2024",  # Q2: Apr 1 – May 31
     3: "September 16, 2024",  # Q3: Jun 1 – Aug 31
     4: "January 15, 2025",  # Q4: Sep 1 – Dec 31
 }
@@ -131,6 +130,14 @@ class QuarterlyEstimator:
             pct = QUARTERLY_CUMULATIVE_PCTS[q]
             cumulative_required = net_required * pct
             quarter_payment = cumulative_required - cumulative_paid
+
+            # Underpayment/overpayment relative to what was required through the
+            # prior quarter, computed before cumulative_paid advances below —
+            # this must happen first, or both sides of the comparison are equal
+            # and these are trivially always zero.
+            underpayment = max(0.0, cumulative_required - cumulative_paid)
+            overpayment = max(0.0, cumulative_paid - cumulative_required) if q > 1 else 0.0
+
             cumulative_paid = cumulative_required
 
             # Annualized income for this quarter (if provided)
@@ -138,10 +145,6 @@ class QuarterlyEstimator:
             if quarterly_income:
                 q_income = quarterly_income.get(q, 0.0)
                 annualized = q_income * (4 / q)  # Simple annualization
-
-            # Check underpayment vs prior period
-            overpayment = max(0.0, cumulative_paid - cumulative_required) if q > 1 else 0.0
-            underpayment = max(0.0, cumulative_required - cumulative_paid)
 
             notes: List[str] = []
             if q == 4:
@@ -158,7 +161,9 @@ class QuarterlyEstimator:
                     annualized_income=round(annualized, 2),
                     cumulative_tax=round(cumulative_required, 2),
                     prior_period_payments=round(cumulative_paid - quarter_payment, 2),
-                    is_safe_harbor_met=True,
+                    underpayment=round(underpayment, 2),
+                    overpayment=round(overpayment, 2),
+                    is_safe_harbor_met=underpayment <= 0.01,
                     notes=notes,
                 )
             )
@@ -170,8 +175,11 @@ class QuarterlyEstimator:
             penalty = shortfall * UNDERPAYMENT_PENALTY_RATE * 0.25  # Rough estimate
 
         recs = self._build_recommendations(
-            expected_total_tax, safe_harbor_total, current_year_safe_harbor,
-            w2_withholding, filing_status
+            expected_total_tax,
+            safe_harbor_total,
+            current_year_safe_harbor,
+            w2_withholding,
+            filing_status,
         )
 
         return QuarterlyEstimate(

@@ -37,12 +37,14 @@ async def recommend_filing_status(request: FilingStatusRequest) -> FilingStatusR
     eligibility to determine the most advantageous filing status.
     """
     tree = DecisionTree.build_filing_status_tree()
-    result = tree.evaluate({
-        "is_married": request.is_married,
-        "prefer_filing_separately": request.prefer_filing_separately,
-        "is_qualifying_surviving_spouse": request.is_qualifying_surviving_spouse,
-        "has_qualifying_dependent": request.has_qualifying_dependent,
-    })
+    result = tree.evaluate(
+        {
+            "is_married": request.is_married,
+            "prefer_filing_separately": request.prefer_filing_separately,
+            "is_qualifying_surviving_spouse": request.is_qualifying_surviving_spouse,
+            "has_qualifying_dependent": request.has_qualifying_dependent,
+        }
+    )
 
     return FilingStatusResponse(
         recommendation=result.recommendation,

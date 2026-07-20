@@ -7,10 +7,10 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
-
 # -----------------------------------------------------------------------
 # Accounting request/response models
 # -----------------------------------------------------------------------
+
 
 class TaxCalculationRequest(BaseModel):
     """Request body for tax calculation endpoint."""
@@ -19,7 +19,7 @@ class TaxCalculationRequest(BaseModel):
     filing_status: str = Field(
         "single",
         description="IRS filing status: single | married_filing_jointly | "
-                    "married_filing_separately | head_of_household | qualifying_surviving_spouse",
+        "married_filing_separately | head_of_household | qualifying_surviving_spouse",
     )
     tax_year: int = Field(2024, ge=2020, le=2030)
     adjustments: float = Field(0.0, ge=0, description="Above-the-line deductions")
@@ -99,6 +99,7 @@ class QuarterlyEstimateRequest(BaseModel):
 # Legal request/response models
 # -----------------------------------------------------------------------
 
+
 class DocumentAnalysisRequest(BaseModel):
     """Request for legal document analysis."""
 
@@ -159,6 +160,7 @@ class ComplianceCheckResponse(BaseModel):
 # -----------------------------------------------------------------------
 # Algorithm request/response models
 # -----------------------------------------------------------------------
+
 
 class FilingStatusRequest(BaseModel):
     """Request for filing status recommendation."""

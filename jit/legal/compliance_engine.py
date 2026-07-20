@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 
 class ComplianceArea(str, Enum):
@@ -17,11 +17,11 @@ class ComplianceArea(str, Enum):
 
     FEDERAL_TAX = "federal_tax"
     STATE_TAX = "state_tax"
-    FBAR = "fbar"                    # FinCEN Form 114
-    FATCA = "fatca"                  # Foreign Account Tax Compliance Act
+    FBAR = "fbar"  # FinCEN Form 114
+    FATCA = "fatca"  # Foreign Account Tax Compliance Act
     EMPLOYMENT = "employment"
     SECURITIES = "securities"
-    AML = "aml"                      # Anti-money laundering
+    AML = "aml"  # Anti-money laundering
     PRIVACY = "privacy"
     CONSUMER_PROTECTION = "consumer"
     CORPORATE = "corporate"
@@ -45,7 +45,7 @@ class ComplianceIssue:
     risk_level: RiskLevel
     title: str
     description: str
-    regulatory_basis: str        # Citation to rule/regulation
+    regulatory_basis: str  # Citation to rule/regulation
     recommended_action: str
     deadline: Optional[str] = None
     penalty_range: Optional[str] = None
@@ -88,7 +88,7 @@ class ComplianceResult:
 FBAR_THRESHOLD = 10_000  # Aggregate value of foreign accounts
 
 # FATCA thresholds (unmarried, filing as single)
-FATCA_THRESHOLD_DOMESTIC = 50_000     # Year-end balance or
+FATCA_THRESHOLD_DOMESTIC = 50_000  # Year-end balance or
 FATCA_THRESHOLD_DOMESTIC_YEAR = 75_000  # At any point during year
 FATCA_THRESHOLD_ABROAD = 200_000
 FATCA_THRESHOLD_ABROAD_YEAR = 300_000
@@ -101,8 +101,8 @@ FORM_1099_THRESHOLD = 600  # For miscellaneous income
 FORM_1099_NEC_THRESHOLD = 600
 
 # Late filing penalties (2024)
-LATE_FILING_PENALTY_RATE = 0.05     # 5% per month, up to 25%
-LATE_PAYMENT_PENALTY_RATE = 0.005   # 0.5% per month, up to 25%
+LATE_FILING_PENALTY_RATE = 0.05  # 5% per month, up to 25%
+LATE_PAYMENT_PENALTY_RATE = 0.005  # 0.5% per month, up to 25%
 
 # FBAR penalties
 FBAR_NON_WILLFUL_MAX = 10_000
@@ -208,7 +208,8 @@ class ComplianceEngine:
                         risk_level=RiskLevel.HIGH,
                         title="FBAR Filing Required",
                         description=(
-                            f"Aggregate foreign account balance (${aggregate_foreign_balance:,.0f}) "
+                            f"Aggregate foreign account balance "
+                            f"(${aggregate_foreign_balance:,.0f}) "
                             f"exceeds FBAR threshold (${FBAR_THRESHOLD:,.0f}). "
                             "FinCEN Form 114 must be filed by April 15."
                         ),
@@ -313,9 +314,7 @@ class ComplianceEngine:
         }
         return thresholds.get(filing_status.lower(), 13_850)
 
-    def _compute_overall_risk(
-        self, issues: List[ComplianceIssue]
-    ) -> tuple:
+    def _compute_overall_risk(self, issues: List[ComplianceIssue]) -> tuple:
         """Compute overall risk level and compliance score."""
         if not issues:
             return RiskLevel.LOW, 1.0

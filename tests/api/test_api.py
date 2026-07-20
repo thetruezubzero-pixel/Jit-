@@ -9,15 +9,14 @@ from jit.api.main import app
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 
 # -----------------------------------------------------------------------
 # Health endpoint
 # -----------------------------------------------------------------------
+
 
 class TestHealthEndpoint:
     async def test_health_ok(self, client):
@@ -31,6 +30,7 @@ class TestHealthEndpoint:
 # -----------------------------------------------------------------------
 # Accounting endpoints
 # -----------------------------------------------------------------------
+
 
 class TestTaxCalculationEndpoint:
     async def test_basic_single_filer(self, client):
@@ -105,6 +105,7 @@ class TestTaxCalculationEndpoint:
 # -----------------------------------------------------------------------
 # Legal endpoints
 # -----------------------------------------------------------------------
+
 
 class TestDocumentAnalysisEndpoint:
     async def test_basic_document_analysis(self, client):
@@ -181,13 +182,17 @@ class TestComplianceCheckEndpoint:
 # Algorithms endpoints
 # -----------------------------------------------------------------------
 
+
 class TestFilingStatusEndpoint:
     async def test_single_recommendation(self, client):
         """Single status recommendation."""
         response = await client.post(
             "/api/v1/algorithms/filing-status",
-            json={"is_married": False, "has_qualifying_dependent": False,
-                  "is_qualifying_surviving_spouse": False},
+            json={
+                "is_married": False,
+                "has_qualifying_dependent": False,
+                "is_qualifying_surviving_spouse": False,
+            },
         )
         assert response.status_code == 200
         data = response.json()
@@ -197,8 +202,11 @@ class TestFilingStatusEndpoint:
         """HOH recommendation for unmarried with dependent."""
         response = await client.post(
             "/api/v1/algorithms/filing-status",
-            json={"is_married": False, "has_qualifying_dependent": True,
-                  "is_qualifying_surviving_spouse": False},
+            json={
+                "is_married": False,
+                "has_qualifying_dependent": True,
+                "is_qualifying_surviving_spouse": False,
+            },
         )
         assert response.status_code == 200
         data = response.json()

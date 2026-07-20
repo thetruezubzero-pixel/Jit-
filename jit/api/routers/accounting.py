@@ -42,9 +42,9 @@ async def calculate_tax(request: TaxCalculationRequest) -> TaxCalculationRespons
         raise HTTPException(
             status_code=422,
             detail=f"Invalid filing_status: {request.filing_status!r}. "
-                   "Must be one of: single, married_filing_jointly, "
-                   "married_filing_separately, head_of_household, "
-                   "qualifying_surviving_spouse",
+            "Must be one of: single, married_filing_jointly, "
+            "married_filing_separately, head_of_household, "
+            "qualifying_surviving_spouse",
         )
 
     calculator = TaxCalculator(tax_year=request.tax_year)
@@ -108,7 +108,9 @@ async def optimize_deductions(request: DeductionOptimizationRequest) -> dict:
     try:
         status = FilingStatus(request.filing_status)
     except ValueError:
-        raise HTTPException(status_code=422, detail=f"Invalid filing_status: {request.filing_status!r}")
+        raise HTTPException(
+            status_code=422, detail=f"Invalid filing_status: {request.filing_status!r}"
+        )
 
     optimizer = DeductionOptimizer()
 
@@ -206,7 +208,9 @@ async def estimate_quarterly(request: QuarterlyEstimateRequest) -> dict:
     try:
         status = FilingStatus(request.filing_status)
     except ValueError:
-        raise HTTPException(status_code=422, detail=f"Invalid filing_status: {request.filing_status!r}")
+        raise HTTPException(
+            status_code=422, detail=f"Invalid filing_status: {request.filing_status!r}"
+        )
 
     estimator = QuarterlyEstimator(tax_year=request.tax_year)
     result = estimator.estimate(

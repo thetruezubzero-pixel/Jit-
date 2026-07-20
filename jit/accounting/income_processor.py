@@ -16,25 +16,25 @@ from typing import Dict, List, Optional
 class IncomeType(str, Enum):
     """IRS income classification types."""
 
-    W2_WAGES = "w2_wages"                         # Employer wages (Form W-2)
-    SELF_EMPLOYMENT = "self_employment"            # Schedule C / 1099-NEC
-    BUSINESS_INCOME = "business_income"            # Schedule C
-    CAPITAL_GAINS_SHORT = "capital_gains_short"    # Short-term (held ≤1 year)
-    CAPITAL_GAINS_LONG = "capital_gains_long"      # Long-term (held >1 year)
-    DIVIDENDS_ORDINARY = "dividends_ordinary"      # 1099-DIV box 1a
-    DIVIDENDS_QUALIFIED = "dividends_qualified"    # 1099-DIV box 1b
-    INTEREST = "interest"                          # 1099-INT
-    RENTAL_INCOME = "rental_income"                # Schedule E
-    PARTNERSHIP_K1 = "partnership_k1"              # Schedule K-1 (Form 1065)
-    S_CORP_K1 = "s_corp_k1"                       # Schedule K-1 (Form 1120-S)
-    RETIREMENT_DISTRIBUTION = "retirement_dist"    # 1099-R
-    SOCIAL_SECURITY = "social_security"            # SSA-1099
-    UNEMPLOYMENT = "unemployment"                  # 1099-G
-    ALIMONY = "alimony"                            # Pre-2019 agreements
-    GAMBLING = "gambling"                          # W-2G
-    ROYALTIES = "royalties"                        # 1099-MISC box 2
-    FOREIGN_INCOME = "foreign_income"              # FBAR / Form 2555
-    OTHER = "other"                                # Miscellaneous
+    W2_WAGES = "w2_wages"  # Employer wages (Form W-2)
+    SELF_EMPLOYMENT = "self_employment"  # Schedule C / 1099-NEC
+    BUSINESS_INCOME = "business_income"  # Schedule C
+    CAPITAL_GAINS_SHORT = "capital_gains_short"  # Short-term (held ≤1 year)
+    CAPITAL_GAINS_LONG = "capital_gains_long"  # Long-term (held >1 year)
+    DIVIDENDS_ORDINARY = "dividends_ordinary"  # 1099-DIV box 1a
+    DIVIDENDS_QUALIFIED = "dividends_qualified"  # 1099-DIV box 1b
+    INTEREST = "interest"  # 1099-INT
+    RENTAL_INCOME = "rental_income"  # Schedule E
+    PARTNERSHIP_K1 = "partnership_k1"  # Schedule K-1 (Form 1065)
+    S_CORP_K1 = "s_corp_k1"  # Schedule K-1 (Form 1120-S)
+    RETIREMENT_DISTRIBUTION = "retirement_dist"  # 1099-R
+    SOCIAL_SECURITY = "social_security"  # SSA-1099
+    UNEMPLOYMENT = "unemployment"  # 1099-G
+    ALIMONY = "alimony"  # Pre-2019 agreements
+    GAMBLING = "gambling"  # W-2G
+    ROYALTIES = "royalties"  # 1099-MISC box 2
+    FOREIGN_INCOME = "foreign_income"  # FBAR / Form 2555
+    OTHER = "other"  # Miscellaneous
 
 
 # Whether each income type is subject to self-employment tax
@@ -62,8 +62,8 @@ SE_TAX_APPLIES: Dict[IncomeType, bool] = {
 
 # Taxability percentage of Social Security benefits (simplified)
 SS_TAXABLE_RATES = [
-    (25_000, 0.00),    # Below $25k (single) — not taxable
-    (34_000, 0.50),    # $25k–$34k — 50% taxable
+    (25_000, 0.00),  # Below $25k (single) — not taxable
+    (34_000, 0.50),  # $25k–$34k — 50% taxable
     (float("inf"), 0.85),  # Above $34k — 85% taxable
 ]
 

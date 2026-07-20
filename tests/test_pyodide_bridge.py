@@ -225,10 +225,8 @@ class TestChat:
         assert data["extracted"]["self_employed"] is True
 
     def test_document_question_routes_to_document_analyze(self):
-        response = _run(
-            "chat",
-            {"message": "Is this contract risky: includes indemnification and a class action waiver"},
-        )
+        message = "Is this contract risky: includes indemnification and a class action waiver"
+        response = _run("chat", {"message": message})
         assert response["data"]["intent"] == "document_analyze"
 
     def test_no_keyword_or_number_falls_back_to_full_case(self):
@@ -239,12 +237,16 @@ class TestChat:
 
     def test_message_with_lone_comma_does_not_crash(self):
         # Regression test for the exact failing message found during manual testing.
-        response = _run("chat", {"message": "Should I file jointly or separately, I am married with kids"})
+        response = _run(
+            "chat", {"message": "Should I file jointly or separately, I am married with kids"}
+        )
         assert response["success"] is True
         assert response["data"]["intent"] == "filing_status_tree"
 
     def test_business_owner_routes_to_optimizer_with_state_tax(self):
-        response = _run("chat", {"message": "I own a business making 300k, how can I save on taxes?"})
+        response = _run(
+            "chat", {"message": "I own a business making 300k, how can I save on taxes?"}
+        )
         data = response["data"]
         assert data["intent"] == "algorithm_optimize"
         assert data["extracted"]["business_owner"] is True

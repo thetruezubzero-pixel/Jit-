@@ -3,7 +3,7 @@ Unit tests for recursive algorithms module.
 """
 
 import pytest
-from jit.algorithms.decision_tree import DecisionTree, DecisionNode, NodeType, NodeContext
+from jit.algorithms.decision_tree import DecisionTree, DecisionNode, NodeType
 from jit.algorithms.optimizer import TaxOptimizer
 from jit.algorithms.risk_assessor import RiskAssessor
 

@@ -102,8 +102,7 @@ _CASE_CITATION_PATTERN = re.compile(
     r"\b(\d+)\s+([A-Z][A-Za-z\.]+(?:[ \t]+[A-Za-z\.]+)*)\s+(\d+)(?:\s*\((\d{4})\))?"
 )
 _STATUTE_CITATION_PATTERN = re.compile(
-    r"\b(\d+)\s+U\.?S\.?C\.?\s+(?:§+|sec\.?)\s*(\d+[a-z]?(?:-\d+[a-z]?)?)"
-    r"(?:\(([a-z0-9]+)\))?",
+    r"\b(\d+)\s+U\.?S\.?C\.?\s+(?:§+|sec\.?)\s*(\d+[a-z]?(?:-\d+[a-z]?)?)" r"(?:\(([a-z0-9]+)\))?",
     re.IGNORECASE,
 )
 _CFR_CITATION_PATTERN = re.compile(
@@ -171,6 +170,7 @@ class DocumentProcessor:
         """
         if document_id is None:
             import hashlib
+
             document_id = hashlib.md5(text[:200].encode()).hexdigest()[:12]
 
         citations = self._extract_citations(text)
@@ -252,15 +252,14 @@ class DocumentProcessor:
 
         return citations
 
-    def _extract_provisions(
-        self, text: str, doc_type: DocumentType
-    ) -> List[LegalProvision]:
+    def _extract_provisions(self, text: str, doc_type: DocumentType) -> List[LegalProvision]:
         """Extract sections and provisions from document text."""
         provisions: List[LegalProvision] = []
 
         # Split on numbered sections or headings
         section_pattern = re.compile(
-            r"(?:^|\n)(?:SECTION|Section|SEC\.|§)\s*(\d+(?:\.\d+)*)[ \t]*(.*?)(?=\n(?:SECTION|Section|SEC\.|§)\s*\d|\Z)",
+            r"(?:^|\n)(?:SECTION|Section|SEC\.|§)\s*(\d+(?:\.\d+)*)[ \t]*(.*?)"
+            r"(?=\n(?:SECTION|Section|SEC\.|§)\s*\d|\Z)",
             re.DOTALL | re.IGNORECASE,
         )
 
@@ -273,11 +272,7 @@ class DocumentProcessor:
 
             # Identify keywords in this section
             kws = self._extract_keywords(body)
-            risk_flags = [
-                phrase
-                for phrase in HIGH_RISK_PHRASES
-                if phrase.lower() in body.lower()
-            ]
+            risk_flags = [phrase for phrase in HIGH_RISK_PHRASES if phrase.lower() in body.lower()]
 
             provisions.append(
                 LegalProvision(
@@ -298,9 +293,7 @@ class DocumentProcessor:
                     title=None,
                     text=text[:5000],
                     keywords=self._extract_keywords(text)[:10],
-                    risk_flags=[
-                        p for p in HIGH_RISK_PHRASES if p.lower() in text.lower()
-                    ],
+                    risk_flags=[p for p in HIGH_RISK_PHRASES if p.lower() in text.lower()],
                 )
             )
 
@@ -309,15 +302,43 @@ class DocumentProcessor:
     def _extract_keywords(self, text: str) -> List[str]:
         """Extract significant legal keywords from text."""
         legal_keywords = [
-            "liability", "warranty", "indemnity", "jurisdiction", "venue",
-            "arbitration", "breach", "damages", "termination", "confidential",
-            "intellectual property", "copyright", "trademark", "patent",
-            "assignment", "sublicense", "force majeure", "governing law",
-            "dispute resolution", "non-compete", "non-disclosure", "NDA",
-            "consideration", "representations", "warranties", "covenants",
-            "conditions", "obligations", "rights", "remedies", "waiver",
-            "amendment", "entire agreement", "severability", "notices",
-            "counterparts", "electronic signatures",
+            "liability",
+            "warranty",
+            "indemnity",
+            "jurisdiction",
+            "venue",
+            "arbitration",
+            "breach",
+            "damages",
+            "termination",
+            "confidential",
+            "intellectual property",
+            "copyright",
+            "trademark",
+            "patent",
+            "assignment",
+            "sublicense",
+            "force majeure",
+            "governing law",
+            "dispute resolution",
+            "non-compete",
+            "non-disclosure",
+            "NDA",
+            "consideration",
+            "representations",
+            "warranties",
+            "covenants",
+            "conditions",
+            "obligations",
+            "rights",
+            "remedies",
+            "waiver",
+            "amendment",
+            "entire agreement",
+            "severability",
+            "notices",
+            "counterparts",
+            "electronic signatures",
         ]
         text_lower = text.lower()
         return [kw for kw in legal_keywords if kw.lower() in text_lower]

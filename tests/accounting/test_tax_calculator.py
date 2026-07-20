@@ -9,7 +9,6 @@ import pytest
 from jit.accounting.tax_calculator import (
     FilingStatus,
     TaxCalculator,
-    TaxResult,
     STANDARD_DEDUCTIONS,
 )
 

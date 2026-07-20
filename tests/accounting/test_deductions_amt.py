@@ -39,10 +39,9 @@ class TestDeductionOptimizer:
         optimizer.add_deduction(DeductionType.PROPERTY_TAX, 5_000)
         result = optimizer.optimize(agi=200_000, filing_status=FilingStatus.SINGLE)
         salt_total = sum(
-            i.applied_amount for i in result.itemized_items
-            if i.deduction_type in (
-                DeductionType.STATE_LOCAL_TAX, DeductionType.PROPERTY_TAX
-            )
+            i.applied_amount
+            for i in result.itemized_items
+            if i.deduction_type in (DeductionType.STATE_LOCAL_TAX, DeductionType.PROPERTY_TAX)
         )
         assert salt_total <= SALT_CAP
 
@@ -52,7 +51,11 @@ class TestDeductionOptimizer:
         result = optimizer.optimize(agi=100_000, filing_status=FilingStatus.SINGLE)
         # 7.5% of 100,000 = 7,500; $5,000 expenses don't exceed threshold
         medical = next(
-            (i for i in result.itemized_items if i.deduction_type == DeductionType.MEDICAL_EXPENSES),
+            (
+                i
+                for i in result.itemized_items
+                if i.deduction_type == DeductionType.MEDICAL_EXPENSES
+            ),
             None,
         )
         assert medical is not None
@@ -63,7 +66,11 @@ class TestDeductionOptimizer:
         optimizer.add_deduction(DeductionType.MEDICAL_EXPENSES, 15_000)
         result = optimizer.optimize(agi=100_000, filing_status=FilingStatus.SINGLE)
         medical = next(
-            (i for i in result.itemized_items if i.deduction_type == DeductionType.MEDICAL_EXPENSES),
+            (
+                i
+                for i in result.itemized_items
+                if i.deduction_type == DeductionType.MEDICAL_EXPENSES
+            ),
             None,
         )
         assert medical is not None
@@ -80,8 +87,10 @@ class TestDeductionOptimizer:
     def test_qbi_phaseout_for_sstb(self, optimizer):
         """SSTB QBI deduction should phase out for high income."""
         result = optimizer.optimize(
-            agi=600_000, filing_status=FilingStatus.SINGLE,
-            qbi_income=100_000, is_sstb=True,
+            agi=600_000,
+            filing_status=FilingStatus.SINGLE,
+            qbi_income=100_000,
+            is_sstb=True,
         )
         assert result.qbi_deduction == 0.0
 
@@ -90,6 +99,31 @@ class TestDeductionOptimizer:
         result = optimizer.optimize(agi=50_000, filing_status=FilingStatus.SINGLE)
         ira_ops = [o for o in result.opportunities if "IRA" in o]
         assert len(ira_ops) > 0
+
+    def test_hsa_contribution_does_not_raise(self, optimizer):
+        """Regression: an HSA_CONTRIBUTION item used to crash with NameError —
+        _process_above_the_line referenced has_hsa_family_plan without it
+        being passed through from optimize()."""
+        optimizer.add_deduction(DeductionType.HSA_CONTRIBUTION, 4_000)
+        result = optimizer.optimize(agi=100_000, filing_status=FilingStatus.SINGLE)
+        assert result.above_the_line_items[0].applied_amount == 4_000
+
+    def test_hsa_family_plan_uses_family_limit(self, optimizer):
+        """Family HSA coverage should allow the higher (family) contribution limit."""
+        optimizer.add_deduction(DeductionType.HSA_CONTRIBUTION, 9_000)
+        result = optimizer.optimize(
+            agi=100_000, filing_status=FilingStatus.SINGLE, has_hsa_family_plan=True
+        )
+        # 2024 family limit is $8,300; self-only would cap at $4,150.
+        assert result.above_the_line_items[0].applied_amount == 8_300.0
+
+    def test_hsa_self_only_plan_uses_lower_limit(self, optimizer):
+        """Self-only HSA coverage should cap at the lower self-only limit."""
+        optimizer.add_deduction(DeductionType.HSA_CONTRIBUTION, 9_000)
+        result = optimizer.optimize(
+            agi=100_000, filing_status=FilingStatus.SINGLE, has_hsa_family_plan=False
+        )
+        assert result.above_the_line_items[0].applied_amount == 4_150.0
 
 
 class TestAMTCalculator:

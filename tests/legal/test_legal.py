@@ -2,16 +2,13 @@
 Unit tests for legal analysis modules.
 """
 
-import pytest
 from jit.legal.document_processor import (
     DocumentProcessor,
     DocumentType,
-    JurisdictionLevel,
 )
 from jit.legal.statute_parser import StatuteParser, CodeType
 from jit.legal.case_analyzer import CaseAnalyzer, CourtLevel
 from jit.legal.compliance_engine import ComplianceEngine, RiskLevel
-
 
 # -----------------------------------------------------------------------
 # DocumentProcessor tests
@@ -182,6 +179,7 @@ class TestCaseAnalyzer:
         """Should parse and index a case from raw text."""
         analyzer = CaseAnalyzer()
         from datetime import date
+
         case = analyzer.add_case_from_text(
             case_name="Commissioner v. Glenshaw Glass",
             citation="348 U.S. 426 (1955)",
@@ -195,7 +193,6 @@ class TestCaseAnalyzer:
     def test_find_precedents(self):
         """Should find relevant precedents for a keyword query."""
         analyzer = CaseAnalyzer()
-        from datetime import date
         analyzer.add_case_from_text(
             case_name="Commissioner v. Glenshaw Glass",
             citation="348 U.S. 426 (1955)",
@@ -221,8 +218,10 @@ class TestCaseAnalyzer:
         """Should retrieve case by citation."""
         analyzer = CaseAnalyzer()
         analyzer.add_case_from_text(
-            "Test Case", "100 U.S. 1 (2000)",
-            CourtLevel.US_SUPREME_COURT, SAMPLE_OPINION,
+            "Test Case",
+            "100 U.S. 1 (2000)",
+            CourtLevel.US_SUPREME_COURT,
+            SAMPLE_OPINION,
         )
         retrieved = analyzer.get_case_by_citation("100 U.S. 1 (2000)")
         assert retrieved is not None
@@ -232,6 +231,7 @@ class TestCaseAnalyzer:
 # -----------------------------------------------------------------------
 # ComplianceEngine tests
 # -----------------------------------------------------------------------
+
 
 class TestComplianceEngine:
     def test_no_issues_basic_compliant(self):
@@ -295,16 +295,22 @@ class TestComplianceEngine:
         """More issues should result in lower compliance score."""
         engine = ComplianceEngine()
         clean = engine.check_individual_tax_compliance(
-            gross_income=75_000, tax_year=2024,
+            gross_income=75_000,
+            tax_year=2024,
             filing_status_str="single",
-            taxes_withheld=15_000, taxes_paid=0,
+            taxes_withheld=15_000,
+            taxes_paid=0,
         )
         risky = engine.check_individual_tax_compliance(
-            gross_income=75_000, tax_year=2024,
+            gross_income=75_000,
+            tax_year=2024,
             filing_status_str="single",
-            taxes_withheld=0, taxes_paid=0,
-            has_foreign_accounts=True, aggregate_foreign_balance=100_000,
+            taxes_withheld=0,
+            taxes_paid=0,
+            has_foreign_accounts=True,
+            aggregate_foreign_balance=100_000,
             has_foreign_assets=80_000,
-            issued_1099s_required=10, issued_1099s_filed=0,
+            issued_1099s_required=10,
+            issued_1099s_filed=0,
         )
         assert risky.compliance_score < clean.compliance_score

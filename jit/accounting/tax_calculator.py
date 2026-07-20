@@ -265,14 +265,10 @@ class TaxCalculator:
         )
 
         # --- Long-term capital gains tax ---
-        ltcg_tax = self._calculate_ltcg_tax(
-            ordinary_taxable, preferred_income, filing_status
-        )
+        ltcg_tax = self._calculate_ltcg_tax(ordinary_taxable, preferred_income, filing_status)
 
         # --- FICA ---
-        ss_tax, medicare_tax, add_medicare = self._calculate_fica(
-            w2_wages, agi, filing_status
-        )
+        ss_tax, medicare_tax, add_medicare = self._calculate_fica(w2_wages, agi, filing_status)
 
         # --- NIIT ---
         niit = self._calculate_niit(agi, net_investment_income, filing_status)
@@ -349,15 +345,11 @@ class TaxCalculator:
 
         return round(tax, 2), details
 
-    def _marginal_rate(
-        self, taxable_income: float, brackets: List[Tuple[float, float]]
-    ) -> float:
+    def _marginal_rate(self, taxable_income: float, brackets: List[Tuple[float, float]]) -> float:
         """Return the marginal tax rate for the given taxable income."""
-        prev_limit = 0.0
         for limit, rate in brackets:
             if taxable_income <= limit:
                 return rate
-            prev_limit = limit
         return brackets[-1][1]
 
     def _calculate_ltcg_tax(
@@ -442,19 +434,57 @@ class TaxCalculator:
         """
         # Approximate effective state income tax rates by state
         STATE_RATES: Dict[str, float] = {
-            "AL": 0.05, "AK": 0.00, "AZ": 0.025, "AR": 0.049,
-            "CA": 0.093, "CO": 0.044, "CT": 0.065, "DE": 0.066,
-            "FL": 0.00, "GA": 0.055, "HI": 0.11, "ID": 0.058,
-            "IL": 0.0495, "IN": 0.0305, "IA": 0.06, "KS": 0.057,
-            "KY": 0.045, "LA": 0.042, "ME": 0.075, "MD": 0.0575,
-            "MA": 0.09, "MI": 0.0425, "MN": 0.0985, "MS": 0.05,
-            "MO": 0.054, "MT": 0.069, "NE": 0.0664, "NV": 0.00,
-            "NH": 0.00, "NJ": 0.0897, "NM": 0.059, "NY": 0.109,
-            "NC": 0.0499, "ND": 0.029, "OH": 0.04, "OK": 0.0475,
-            "OR": 0.099, "PA": 0.0307, "RI": 0.0599, "SC": 0.07,
-            "SD": 0.00, "TN": 0.00, "TX": 0.00, "UT": 0.0485,
-            "VT": 0.0875, "VA": 0.0575, "WA": 0.00, "WV": 0.065,
-            "WI": 0.0765, "WY": 0.00, "DC": 0.0895,
+            "AL": 0.05,
+            "AK": 0.00,
+            "AZ": 0.025,
+            "AR": 0.049,
+            "CA": 0.093,
+            "CO": 0.044,
+            "CT": 0.065,
+            "DE": 0.066,
+            "FL": 0.00,
+            "GA": 0.055,
+            "HI": 0.11,
+            "ID": 0.058,
+            "IL": 0.0495,
+            "IN": 0.0305,
+            "IA": 0.06,
+            "KS": 0.057,
+            "KY": 0.045,
+            "LA": 0.042,
+            "ME": 0.075,
+            "MD": 0.0575,
+            "MA": 0.09,
+            "MI": 0.0425,
+            "MN": 0.0985,
+            "MS": 0.05,
+            "MO": 0.054,
+            "MT": 0.069,
+            "NE": 0.0664,
+            "NV": 0.00,
+            "NH": 0.00,
+            "NJ": 0.0897,
+            "NM": 0.059,
+            "NY": 0.109,
+            "NC": 0.0499,
+            "ND": 0.029,
+            "OH": 0.04,
+            "OK": 0.0475,
+            "OR": 0.099,
+            "PA": 0.0307,
+            "RI": 0.0599,
+            "SC": 0.07,
+            "SD": 0.00,
+            "TN": 0.00,
+            "TX": 0.00,
+            "UT": 0.0485,
+            "VT": 0.0875,
+            "VA": 0.0575,
+            "WA": 0.00,
+            "WV": 0.065,
+            "WI": 0.0765,
+            "WY": 0.00,
+            "DC": 0.0895,
         }
         rate = STATE_RATES.get(state_code.upper(), 0.05)
         return round(agi * rate, 2)

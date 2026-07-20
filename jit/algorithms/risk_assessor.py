@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 
 class RiskCategory(str, Enum):
@@ -43,7 +43,7 @@ class RiskProfile:
     factors: List[RiskFactor] = field(default_factory=list)
 
     # Overall scores
-    audit_risk_score: float = 0.0    # 0.0 (minimal) to 1.0 (very high)
+    audit_risk_score: float = 0.0  # 0.0 (minimal) to 1.0 (very high)
     penalty_risk_score: float = 0.0
     legal_risk_score: float = 0.0
     overall_risk_score: float = 0.0
@@ -142,139 +142,165 @@ class RiskAssessor:
         # --- Build risk factors ---
 
         # Schedule C
-        factors.append(RiskFactor(
-            category=RiskCategory.AUDIT_RISK,
-            factor_id="schedule_c",
-            description="Schedule C (self-employment) filed — higher IRS scrutiny",
-            risk_contribution=0.35 if has_schedule_c else 0.0,
-            is_present=has_schedule_c,
-            mitigation="Keep detailed receipts and records for all business expenses",
-            regulatory_citation="IRS Publication 583; Treas. Reg. § 1.183-2",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.AUDIT_RISK,
+                factor_id="schedule_c",
+                description="Schedule C (self-employment) filed — higher IRS scrutiny",
+                risk_contribution=0.35 if has_schedule_c else 0.0,
+                is_present=has_schedule_c,
+                mitigation="Keep detailed receipts and records for all business expenses",
+                regulatory_citation="IRS Publication 583; Treas. Reg. § 1.183-2",
+            )
+        )
 
         # EITC
-        factors.append(RiskFactor(
-            category=RiskCategory.AUDIT_RISK,
-            factor_id="eitc",
-            description="Earned Income Tax Credit (EITC) claimed — high error rate category",
-            risk_contribution=0.25 if claimed_eitc else 0.0,
-            is_present=claimed_eitc,
-            mitigation="Verify eligibility per Form 8862 requirements; retain documentation",
-            regulatory_citation="IRC § 32; Rev. Proc. 2012-48",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.AUDIT_RISK,
+                factor_id="eitc",
+                description="Earned Income Tax Credit (EITC) claimed — high error rate category",
+                risk_contribution=0.25 if claimed_eitc else 0.0,
+                is_present=claimed_eitc,
+                mitigation="Verify eligibility per Form 8862 requirements; retain documentation",
+                regulatory_citation="IRC § 32; Rev. Proc. 2012-48",
+            )
+        )
 
         # High deduction ratio
         high_deductions = deduction_to_income_ratio > 0.35
-        factors.append(RiskFactor(
-            category=RiskCategory.AUDIT_RISK,
-            factor_id="high_deductions",
-            description=f"Deduction-to-income ratio ({deduction_to_income_ratio:.0%}) is high",
-            risk_contribution=0.30 if high_deductions else 0.0,
-            is_present=high_deductions,
-            mitigation="Ensure all deductions are properly documented and legitimate",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.AUDIT_RISK,
+                factor_id="high_deductions",
+                description=f"Deduction-to-income ratio ({deduction_to_income_ratio:.0%}) is high",
+                risk_contribution=0.30 if high_deductions else 0.0,
+                is_present=high_deductions,
+                mitigation="Ensure all deductions are properly documented and legitimate",
+            )
+        )
 
         # Foreign income/accounts
-        factors.append(RiskFactor(
-            category=RiskCategory.COMPLIANCE_RISK,
-            factor_id="foreign_income",
-            description="Foreign income or assets reported — additional scrutiny",
-            risk_contribution=0.40 if has_foreign_income else 0.0,
-            is_present=has_foreign_income,
-            mitigation="Ensure FBAR, Form 8938, and Form 5471/8621 filed if applicable",
-            regulatory_citation="IRC § 6038; 31 U.S.C. § 5314",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.COMPLIANCE_RISK,
+                factor_id="foreign_income",
+                description="Foreign income or assets reported — additional scrutiny",
+                risk_contribution=0.40 if has_foreign_income else 0.0,
+                is_present=has_foreign_income,
+                mitigation="Ensure FBAR, Form 8938, and Form 5471/8621 filed if applicable",
+                regulatory_citation="IRC § 6038; 31 U.S.C. § 5314",
+            )
+        )
 
         # Crypto
-        factors.append(RiskFactor(
-            category=RiskCategory.COMPLIANCE_RISK,
-            factor_id="crypto",
-            description="Virtual currency transactions — IRS virtual currency question on 1040",
-            risk_contribution=0.25 if has_crypto_transactions else 0.0,
-            is_present=has_crypto_transactions,
-            mitigation="Report all crypto transactions on Form 8949; answer virtual currency question",
-            regulatory_citation="IRS Notice 2014-21; Rev. Rul. 2019-24",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.COMPLIANCE_RISK,
+                factor_id="crypto",
+                description="Virtual currency transactions — IRS virtual currency question on 1040",
+                risk_contribution=0.25 if has_crypto_transactions else 0.0,
+                is_present=has_crypto_transactions,
+                mitigation=(
+                    "Report all crypto transactions on Form 8949; answer virtual currency question"
+                ),
+                regulatory_citation="IRS Notice 2014-21; Rev. Rul. 2019-24",
+            )
+        )
 
         # Home office
-        factors.append(RiskFactor(
-            category=RiskCategory.AUDIT_RISK,
-            factor_id="home_office",
-            description="Home office deduction claimed (regular exclusive use required)",
-            risk_contribution=0.20 if claimed_home_office else 0.0,
-            is_present=claimed_home_office,
-            mitigation="Use simplified method or document exclusive business use area",
-            regulatory_citation="IRC § 280A; Treas. Reg. § 1.280A-2",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.AUDIT_RISK,
+                factor_id="home_office",
+                description="Home office deduction claimed (regular exclusive use required)",
+                risk_contribution=0.20 if claimed_home_office else 0.0,
+                is_present=claimed_home_office,
+                mitigation="Use simplified method or document exclusive business use area",
+                regulatory_citation="IRC § 280A; Treas. Reg. § 1.280A-2",
+            )
+        )
 
         # Large charitable donations
         high_charitable = large_charitable_pct > 0.30
-        factors.append(RiskFactor(
-            category=RiskCategory.AUDIT_RISK,
-            factor_id="large_charitable",
-            description=f"Large charitable deductions ({large_charitable_pct:.0%} of AGI)",
-            risk_contribution=0.25 if high_charitable else 0.0,
-            is_present=high_charitable,
-            mitigation=(
-                "Retain written acknowledgment for gifts $250+; "
-                "non-cash donations $500+ require Form 8283"
-            ),
-            regulatory_citation="IRC § 170(f)(8); Treas. Reg. § 1.170A-13",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.AUDIT_RISK,
+                factor_id="large_charitable",
+                description=f"Large charitable deductions ({large_charitable_pct:.0%} of AGI)",
+                risk_contribution=0.25 if high_charitable else 0.0,
+                is_present=high_charitable,
+                mitigation=(
+                    "Retain written acknowledgment for gifts $250+; "
+                    "non-cash donations $500+ require Form 8283"
+                ),
+                regulatory_citation="IRC § 170(f)(8); Treas. Reg. § 1.170A-13",
+            )
+        )
 
         # Penalty risk factors
 
         # Unreported income
-        factors.append(RiskFactor(
-            category=RiskCategory.PENALTY_RISK,
-            factor_id="unreported_income",
-            description="Potential unreported income — civil and criminal penalty risk",
-            risk_contribution=1.0 if has_unreported_income else 0.0,
-            is_present=has_unreported_income,
-            mitigation=(
-                "File amended return (Form 1040-X) and consider IRS Voluntary Disclosure "
-                "Program to limit criminal exposure"
-            ),
-            regulatory_citation="IRC § 7201; IRC § 6663",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.PENALTY_RISK,
+                factor_id="unreported_income",
+                description="Potential unreported income — civil and criminal penalty risk",
+                risk_contribution=1.0 if has_unreported_income else 0.0,
+                is_present=has_unreported_income,
+                mitigation=(
+                    "File amended return (Form 1040-X) and consider IRS Voluntary Disclosure "
+                    "Program to limit criminal exposure"
+                ),
+                regulatory_citation="IRC § 7201; IRC § 6663",
+            )
+        )
 
         # Substantial understatement
-        factors.append(RiskFactor(
-            category=RiskCategory.PENALTY_RISK,
-            factor_id="substantial_understatement",
-            description="Substantial understatement of income tax (>10% or $5,000)",
-            risk_contribution=0.60 if has_substantial_understatement else 0.0,
-            is_present=has_substantial_understatement,
-            mitigation="Ensure positions have 'substantial authority' (IRC § 6662(d)(2)(B))",
-            regulatory_citation="IRC § 6662(b)(2); IRC § 6662(d)",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.PENALTY_RISK,
+                factor_id="substantial_understatement",
+                description="Substantial understatement of income tax (>10% or $5,000)",
+                risk_contribution=0.60 if has_substantial_understatement else 0.0,
+                is_present=has_substantial_understatement,
+                mitigation="Ensure positions have 'substantial authority' (IRC § 6662(d)(2)(B))",
+                regulatory_citation="IRC § 6662(b)(2); IRC § 6662(d)",
+            )
+        )
 
         # Mathematical errors
-        factors.append(RiskFactor(
-            category=RiskCategory.COMPLIANCE_RISK,
-            factor_id="math_errors",
-            description="Mathematical errors trigger automatic IRS review",
-            risk_contribution=0.15 if has_mathematical_errors else 0.0,
-            is_present=has_mathematical_errors,
-            mitigation="Review return thoroughly; use tax software to check calculations",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.COMPLIANCE_RISK,
+                factor_id="math_errors",
+                description="Mathematical errors trigger automatic IRS review",
+                risk_contribution=0.15 if has_mathematical_errors else 0.0,
+                is_present=has_mathematical_errors,
+                mitigation="Review return thoroughly; use tax software to check calculations",
+            )
+        )
 
         # Late filing
-        factors.append(RiskFactor(
-            category=RiskCategory.PENALTY_RISK,
-            factor_id="late_filing",
-            description="Return filed after deadline — failure-to-file penalty applies",
-            risk_contribution=0.20 if filed_late else 0.0,
-            is_present=filed_late,
-            mitigation="File immediately; consider requesting penalty abatement for first-time penalty",
-            regulatory_citation="IRC § 6651(a)(1)",
-        ))
+        factors.append(
+            RiskFactor(
+                category=RiskCategory.PENALTY_RISK,
+                factor_id="late_filing",
+                description="Return filed after deadline — failure-to-file penalty applies",
+                risk_contribution=0.20 if filed_late else 0.0,
+                is_present=filed_late,
+                mitigation=(
+                    "File immediately; consider requesting penalty abatement for first-time penalty"
+                ),
+                regulatory_citation="IRC § 6651(a)(1)",
+            )
+        )
 
         # --- Compute scores ---
         audit_score = self._compute_audit_score(factors, base_rate)
         penalty_score = self._compute_category_score(factors, RiskCategory.PENALTY_RISK)
         compliance_score = self._compute_category_score(factors, RiskCategory.COMPLIANCE_RISK)
-        overall_score = (audit_score * 0.4 + penalty_score * 0.35 + compliance_score * 0.25)
+        overall_score = audit_score * 0.4 + penalty_score * 0.35 + compliance_score * 0.25
 
         # Estimated audit probability
         audit_prob = base_rate
@@ -320,19 +346,17 @@ class RiskAssessor:
         else:
             return AUDIT_BASE_RATES["over_5m"]
 
-    def _compute_audit_score(
-        self, factors: List[RiskFactor], base_rate: float
-    ) -> float:
+    def _compute_audit_score(self, factors: List[RiskFactor], base_rate: float) -> float:
         """Compute normalized audit risk score."""
-        audit_factors = [f for f in factors if f.category == RiskCategory.AUDIT_RISK and f.is_present]
+        audit_factors = [
+            f for f in factors if f.category == RiskCategory.AUDIT_RISK and f.is_present
+        ]
         if not audit_factors:
             return min(base_rate * 10, 0.15)  # Normalize base rate to 0-1 scale
         total = sum(f.risk_contribution for f in audit_factors)
         return min(total, 1.0)
 
-    def _compute_category_score(
-        self, factors: List[RiskFactor], category: RiskCategory
-    ) -> float:
+    def _compute_category_score(self, factors: List[RiskFactor], category: RiskCategory) -> float:
         """Compute risk score for a specific category."""
         cat_factors = [f for f in factors if f.category == category and f.is_present]
         if not cat_factors:
@@ -350,9 +374,7 @@ class RiskAssessor:
         else:
             return "Very High"
 
-    def _build_recommendations(
-        self, factors: List[RiskFactor], overall_score: float
-    ) -> List[str]:
+    def _build_recommendations(self, factors: List[RiskFactor], overall_score: float) -> List[str]:
         """Build risk mitigation recommendations."""
         recs: List[str] = []
         present = [f for f in factors if f.is_present]

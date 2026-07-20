@@ -17,10 +17,10 @@ from typing import Dict, List, Optional
 class CodeType(str, Enum):
     """Type of legal code."""
 
-    USC = "usc"          # United States Code
-    CFR = "cfr"          # Code of Federal Regulations
-    FR = "fr"            # Federal Register
-    STATE_CODE = "state" # State statute/code
+    USC = "usc"  # United States Code
+    CFR = "cfr"  # Code of Federal Regulations
+    FR = "fr"  # Federal Register
+    STATE_CODE = "state"  # State statute/code
     LOCAL_ORD = "local"  # Local ordinance
 
 
@@ -29,8 +29,8 @@ class StatuteSection:
     """A parsed section of a statute or regulation."""
 
     code_type: CodeType
-    title: str            # Title number (USC) or CFR title
-    section: str          # Section number
+    title: str  # Title number (USC) or CFR title
+    section: str  # Section number
     heading: Optional[str] = None
     text: str = ""
     subsections: List["StatuteSection"] = field(default_factory=list)
@@ -259,9 +259,7 @@ class StatuteParser:
     ) -> List["StatuteSection"]:
         """Extract lettered/numbered subsections."""
         subsections: List[StatuteSection] = []
-        pattern = re.compile(
-            r"\(([a-z])\)\s+(.*?)(?=\([a-z]\)|\Z)", re.DOTALL
-        )
+        pattern = re.compile(r"\(([a-z])\)\s+(.*?)(?=\([a-z]\)|\Z)", re.DOTALL)
         for match in pattern.finditer(text):
             label = match.group(1)
             body = match.group(2).strip()
@@ -280,12 +278,32 @@ class StatuteParser:
     def _extract_keywords(self, text: str) -> List[str]:
         """Extract legal and tax-relevant keywords."""
         domain_keywords = [
-            "taxpayer", "gross income", "taxable income", "deduction", "credit",
-            "penalty", "interest", "assessment", "collection", "refund",
-            "liability", "obligation", "right", "duty", "compliance",
-            "regulations", "statute of limitations", "substantial authority",
-            "reasonable cause", "willful", "fraud", "civil penalty",
-            "criminal", "jurisdiction", "standing", "due process",
+            "taxpayer",
+            "gross income",
+            "taxable income",
+            "deduction",
+            "credit",
+            "penalty",
+            "interest",
+            "assessment",
+            "collection",
+            "refund",
+            "liability",
+            "obligation",
+            "right",
+            "duty",
+            "compliance",
+            "regulations",
+            "statute of limitations",
+            "substantial authority",
+            "reasonable cause",
+            "willful",
+            "fraud",
+            "civil penalty",
+            "criminal",
+            "jurisdiction",
+            "standing",
+            "due process",
         ]
         text_lower = text.lower()
         return [kw for kw in domain_keywords if kw in text_lower]

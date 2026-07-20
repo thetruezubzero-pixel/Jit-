@@ -20,14 +20,14 @@ class DeductionType(str, Enum):
 
     # Itemized deductions (Schedule A)
     MORTGAGE_INTEREST = "mortgage_interest"
-    STATE_LOCAL_TAX = "state_local_tax"        # SALT (capped at $10k)
-    PROPERTY_TAX = "property_tax"              # Part of SALT cap
+    STATE_LOCAL_TAX = "state_local_tax"  # SALT (capped at $10k)
+    PROPERTY_TAX = "property_tax"  # Part of SALT cap
     CHARITABLE_CASH = "charitable_cash"
     CHARITABLE_NONCASH = "charitable_noncash"
-    MEDICAL_EXPENSES = "medical_expenses"      # >7.5% AGI threshold
-    CASUALTY_LOSS = "casualty_loss"            # Federally declared disaster
+    MEDICAL_EXPENSES = "medical_expenses"  # >7.5% AGI threshold
+    CASUALTY_LOSS = "casualty_loss"  # Federally declared disaster
     INVESTMENT_INTEREST = "investment_interest"
-    GAMBLING_LOSSES = "gambling_losses"        # Up to gambling winnings
+    GAMBLING_LOSSES = "gambling_losses"  # Up to gambling winnings
 
     # Above-the-line (Schedule 1 adjustments)
     TRADITIONAL_IRA = "traditional_ira"
@@ -36,7 +36,7 @@ class DeductionType(str, Enum):
     EDUCATOR_EXPENSES = "educator_expenses"
     SELF_EMPLOYED_HEALTH = "self_employed_health_insurance"
     SELF_EMPLOYED_SEP = "self_employed_sep_ira"
-    MOVING_EXPENSES = "moving_expenses"        # Military only after TCJA
+    MOVING_EXPENSES = "moving_expenses"  # Military only after TCJA
 
     # QBI deduction (IRC §199A)
     QBI_DEDUCTION = "qbi_deduction"
@@ -202,7 +202,7 @@ class DeductionOptimizer:
         # --- Above-the-line deductions ---
         above_items = [i for i in self._deduction_items if i.is_above_the_line]
         result.above_the_line_items = self._process_above_the_line(
-            above_items, agi, filing_status, age, has_workplace_retirement_plan
+            above_items, agi, filing_status, age, has_workplace_retirement_plan, has_hsa_family_plan
         )
         result.above_the_line_total = sum(i.applied_amount for i in result.above_the_line_items)
 
@@ -219,8 +219,8 @@ class DeductionOptimizer:
             result.recommended_method = "itemized"
             result.recommended_deduction = result.itemized_deduction
             result.tax_benefit_difference = (
-                (result.itemized_deduction - result.standard_deduction) * marginal_rate
-            )
+                result.itemized_deduction - result.standard_deduction
+            ) * marginal_rate
         else:
             result.recommended_method = "standard"
             result.recommended_deduction = result.standard_deduction
@@ -234,8 +234,7 @@ class DeductionOptimizer:
 
         # --- Opportunities ---
         result.opportunities = self._identify_opportunities(
-            agi, filing_status, age, has_hsa_family_plan,
-            has_workplace_retirement_plan, result
+            agi, filing_status, age, has_hsa_family_plan, has_workplace_retirement_plan, result
         )
 
         return result
@@ -255,6 +254,7 @@ class DeductionOptimizer:
         filing_status: FilingStatus,
         age: int,
         has_workplace_plan: bool,
+        has_hsa_family_plan: bool,
     ) -> List[DeductionItem]:
         """Apply limits and phase-outs to above-the-line deductions."""
         processed: List[DeductionItem] = []
@@ -267,9 +267,7 @@ class DeductionOptimizer:
                 limit = IRA_LIMIT_50_PLUS if age >= 50 else IRA_LIMIT_UNDER_50
                 applied = min(applied, limit)
                 if has_workplace_plan:
-                    applied = self._apply_phaseout(
-                        applied, agi, *IRA_PHASEOUT[filing_status]
-                    )
+                    applied = self._apply_phaseout(applied, agi, *IRA_PHASEOUT[filing_status])
                     if applied < item.amount:
                         note = f"IRA deduction phased out based on AGI (${agi:,.0f})"
 
@@ -308,9 +306,7 @@ class DeductionOptimizer:
 
         return processed
 
-    def _process_itemized(
-        self, items: List[DeductionItem], agi: float
-    ) -> List[DeductionItem]:
+    def _process_itemized(self, items: List[DeductionItem], agi: float) -> List[DeductionItem]:
         """Apply limits to itemized deductions (Schedule A)."""
         processed: List[DeductionItem] = []
         salt_used = 0.0
@@ -416,7 +412,8 @@ class DeductionOptimizer:
 
         # IRA contribution
         ira_items = [
-            i for i in result.above_the_line_items
+            i
+            for i in result.above_the_line_items
             if i.deduction_type == DeductionType.TRADITIONAL_IRA
         ]
         limit = IRA_LIMIT_50_PLUS if age >= 50 else IRA_LIMIT_UNDER_50
@@ -430,7 +427,8 @@ class DeductionOptimizer:
 
         # HSA
         hsa_items = [
-            i for i in result.above_the_line_items
+            i
+            for i in result.above_the_line_items
             if i.deduction_type == DeductionType.HSA_CONTRIBUTION
         ]
         hsa_limit = (
@@ -441,9 +439,7 @@ class DeductionOptimizer:
         if not hsa_items or sum(i.applied_amount for i in hsa_items) < hsa_limit:
             remaining = hsa_limit - sum(i.applied_amount for i in hsa_items)
             if remaining > 0:
-                ops.append(
-                    f"Maximize HSA contributions: ${remaining:,.0f} remaining for 2024."
-                )
+                ops.append(f"Maximize HSA contributions: ${remaining:,.0f} remaining for 2024.")
 
         # Charitable bunching
         if result.recommended_method == "standard":

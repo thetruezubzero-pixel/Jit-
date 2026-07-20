@@ -13,7 +13,6 @@ from typing import Optional
 
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -50,9 +49,7 @@ class User(Base):
     # Relationships
     tax_cases: Mapped[list["TaxCase"]] = relationship("TaxCase", back_populates="user")
     legal_cases: Mapped[list["LegalCase"]] = relationship("LegalCase", back_populates="user")
-    income_entries: Mapped[list["IncomeEntry"]] = relationship(
-        "IncomeEntry", back_populates="user"
-    )
+    income_entries: Mapped[list["IncomeEntry"]] = relationship("IncomeEntry", back_populates="user")
 
     def __repr__(self) -> str:
         return f"<User(username={self.username!r}, email={self.email!r})>"
@@ -96,7 +93,9 @@ class TaxCase(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<TaxCase(user_id={self.user_id!r}, year={self.tax_year}, total_tax={self.total_tax})>"
+        return (
+            f"<TaxCase(user_id={self.user_id!r}, year={self.tax_year}, total_tax={self.total_tax})>"
+        )
 
 
 class LegalCase(Base):
@@ -166,6 +165,4 @@ class ComplianceCheck(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     def __repr__(self) -> str:
-        return (
-            f"<ComplianceCheck(risk={self.overall_risk!r}, score={self.compliance_score})>"
-        )
+        return f"<ComplianceCheck(risk={self.overall_risk!r}, score={self.compliance_score})>"

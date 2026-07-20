@@ -66,21 +66,19 @@ def format_tax_summary(tax_result: Any) -> str:
             f"  Add'l Medicare Tax:    {format_currency(tax_result.additional_medicare_tax)}"
         )
     if tax_result.self_employment_tax > 0:
-        lines.append(
-            f"  Self-Employment Tax:   {format_currency(tax_result.self_employment_tax)}"
-        )
+        lines.append(f"  Self-Employment Tax:   {format_currency(tax_result.self_employment_tax)}")
     if tax_result.long_term_capital_gains_tax > 0:
         lines.append(
             f"  LTCG Tax:              {format_currency(tax_result.long_term_capital_gains_tax)}"
         )
     if tax_result.niit > 0:
-        lines.append(
-            f"  Net Investment Income: {format_currency(tax_result.niit)}"
-        )
+        lines.append(f"  Net Investment Income: {format_currency(tax_result.niit)}")
     if tax_result.state_tax > 0:
-        lines.append(
-            f"  State Tax ({tax_result.state_code or 'N/A'}):       {format_currency(tax_result.state_tax)}"
+        state_tax_line = (
+            f"  State Tax ({tax_result.state_code or 'N/A'}):       "
+            f"{format_currency(tax_result.state_tax)}"
         )
+        lines.append(state_tax_line)
     lines += [
         f"  {'─'*56}",
         f"  TOTAL TAX:             {format_currency(tax_result.total_tax)}",

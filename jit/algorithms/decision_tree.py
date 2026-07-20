@@ -15,10 +15,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 class NodeType(str, Enum):
     """Type of decision node."""
 
-    CONDITION = "condition"      # Boolean test — branches to yes/no children
+    CONDITION = "condition"  # Boolean test — branches to yes/no children
     CALCULATION = "calculation"  # Computes a value
     RECOMMENDATION = "recommendation"  # Terminal recommendation
-    LOOKUP = "lookup"            # Table/threshold lookup
+    LOOKUP = "lookup"  # Table/threshold lookup
     AGGREGATION = "aggregation"  # Combines multiple children
 
 
@@ -33,7 +33,7 @@ class NodeContext:
 
     data: Dict[str, Any]
     results: Dict[str, Any] = field(default_factory=dict)
-    path: List[str] = field(default_factory=list)   # Nodes visited
+    path: List[str] = field(default_factory=list)  # Nodes visited
     depth: int = 0
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -59,9 +59,9 @@ class DecisionResult:
     """Result of evaluating a decision tree."""
 
     recommendation: str
-    confidence: float              # 0.0 to 1.0
-    value: Optional[Any]           # Computed value (e.g., tax savings)
-    path_taken: List[str]          # Node IDs visited
+    confidence: float  # 0.0 to 1.0
+    value: Optional[Any]  # Computed value (e.g., tax savings)
+    path_taken: List[str]  # Node IDs visited
     intermediate_results: Dict[str, Any] = field(default_factory=dict)
     supporting_reasons: List[str] = field(default_factory=list)
     alternative_paths: List[str] = field(default_factory=list)
@@ -246,8 +246,7 @@ class DecisionNode:
 
         # Weighted confidence aggregation
         weighted_confidence = sum(
-            r.confidence * w
-            for r, (_, w) in zip(sub_results, self.children)
+            r.confidence * w for r, (_, w) in zip(sub_results, self.children)
         ) / max(total_weight, 1e-9)
 
         recommendations = [r.recommendation for r in sub_results]
@@ -265,9 +264,7 @@ class DecisionNode:
             value=all_intermediate,
             path_taken=combined_path,
             intermediate_results=all_intermediate,
-            supporting_reasons=[
-                f"Aggregated {len(sub_results)} analysis branches"
-            ],
+            supporting_reasons=[f"Aggregated {len(sub_results)} analysis branches"],
         )
 
 
@@ -319,7 +316,8 @@ class DecisionTree:
         """
         # Terminal nodes
         single_rec = DecisionNode(
-            "rec_single", NodeType.RECOMMENDATION,
+            "rec_single",
+            NodeType.RECOMMENDATION,
             "File as SINGLE",
             recommendation=(
                 "File as Single. You are not married and do not qualify as head of household. "
@@ -329,7 +327,8 @@ class DecisionTree:
         )
 
         mfj_rec = DecisionNode(
-            "rec_mfj", NodeType.RECOMMENDATION,
+            "rec_mfj",
+            NodeType.RECOMMENDATION,
             "File as MARRIED FILING JOINTLY (MFJ)",
             recommendation=(
                 "File as Married Filing Jointly. MFJ typically results in the lowest "
@@ -339,7 +338,8 @@ class DecisionTree:
         )
 
         mfs_rec = DecisionNode(
-            "rec_mfs", NodeType.RECOMMENDATION,
+            "rec_mfs",
+            NodeType.RECOMMENDATION,
             "File as MARRIED FILING SEPARATELY (MFS)",
             recommendation=(
                 "File as Married Filing Separately. Consider MFS if your spouse has "
@@ -350,7 +350,8 @@ class DecisionTree:
         )
 
         hoh_rec = DecisionNode(
-            "rec_hoh", NodeType.RECOMMENDATION,
+            "rec_hoh",
+            NodeType.RECOMMENDATION,
             "File as HEAD OF HOUSEHOLD (HOH)",
             recommendation=(
                 "File as Head of Household. You are unmarried and pay more than half "
@@ -361,7 +362,8 @@ class DecisionTree:
         )
 
         qss_rec = DecisionNode(
-            "rec_qss", NodeType.RECOMMENDATION,
+            "rec_qss",
+            NodeType.RECOMMENDATION,
             "File as QUALIFYING SURVIVING SPOUSE (QSS)",
             recommendation=(
                 "File as Qualifying Surviving Spouse. Your spouse passed away within "
@@ -373,7 +375,8 @@ class DecisionTree:
 
         # Condition: married vs. not
         mfs_or_mfj = DecisionNode(
-            "mfs_vs_mfj", NodeType.CONDITION,
+            "mfs_vs_mfj",
+            NodeType.CONDITION,
             "Is filing separately advantageous (separate debts/liabilities)?",
             condition=lambda ctx: ctx.get("prefer_filing_separately", False),
             yes_child=mfs_rec,
@@ -381,7 +384,8 @@ class DecisionTree:
         )
 
         has_qualifying_person = DecisionNode(
-            "has_qualifying_person", NodeType.CONDITION,
+            "has_qualifying_person",
+            NodeType.CONDITION,
             "Does a qualifying person live with you for more than half the year?",
             condition=lambda ctx: ctx.get("has_qualifying_dependent", False),
             yes_child=hoh_rec,
@@ -389,7 +393,8 @@ class DecisionTree:
         )
 
         qss_check = DecisionNode(
-            "qss_check", NodeType.CONDITION,
+            "qss_check",
+            NodeType.CONDITION,
             "Did your spouse pass away in the last 2 years and do you have a dependent child?",
             condition=lambda ctx: ctx.get("is_qualifying_surviving_spouse", False),
             yes_child=qss_rec,
@@ -397,7 +402,8 @@ class DecisionTree:
         )
 
         married_check = DecisionNode(
-            "married_check", NodeType.CONDITION,
+            "married_check",
+            NodeType.CONDITION,
             "Are you married (or considered married) on December 31?",
             condition=lambda ctx: ctx.get("is_married", False),
             yes_child=mfs_or_mfj,
@@ -414,7 +420,8 @@ class DecisionTree:
         Returns a pre-built deduction method selection tree.
         """
         itemized_rec = DecisionNode(
-            "rec_itemize", NodeType.RECOMMENDATION,
+            "rec_itemize",
+            NodeType.RECOMMENDATION,
             "ITEMIZE deductions (Schedule A)",
             recommendation=(
                 "Itemize your deductions. Your itemized deductions exceed the standard "
@@ -424,7 +431,8 @@ class DecisionTree:
         )
 
         standard_rec = DecisionNode(
-            "rec_standard", NodeType.RECOMMENDATION,
+            "rec_standard",
+            NodeType.RECOMMENDATION,
             "Take the STANDARD deduction",
             recommendation=(
                 "Take the standard deduction. Your itemized deductions do not exceed "
@@ -434,7 +442,8 @@ class DecisionTree:
         )
 
         itemized_vs_standard = DecisionNode(
-            "itemized_vs_standard", NodeType.CONDITION,
+            "itemized_vs_standard",
+            NodeType.CONDITION,
             "Do itemized deductions exceed the standard deduction?",
             condition=lambda ctx: (
                 ctx.get("itemized_deductions", 0) > ctx.get("standard_deduction", 14_600)
