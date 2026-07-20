@@ -345,6 +345,78 @@ class TestCompoundIntents:
         assert response["data"]["entries_analyzed"] == 2
 
 
+class TestConversationalSuggestions:
+    """After answering one topic, chat() offers a natural next step, and a
+    short affirmative reply ("yes", "sure") runs it automatically using the
+    same remembered income/filing-status/state — real conversation-to-
+    automation chaining, not just Q&A."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_reply_offers_a_next_step_suggestion(self):
+        response = _run("chat", {"message": "what's my tax on 150k"})
+        assert "audit risk" in response["data"]["reply"].lower()
+
+    def test_affirmative_reply_runs_the_suggested_intent(self):
+        _run("chat", {"message": "what's my tax on 150k"})
+        response = _run("chat", {"message": "yes"})
+        data = response["data"]
+        assert data["intent"] == "risk_assess"
+        assert data["extracted"]["amount"] == 150_000.0
+
+    def test_various_affirmative_phrasings_all_work(self):
+        for phrase in ["yeah", "sure", "ok", "please do", "go ahead", "sounds good"]:
+            bridge.dispatch("chat_reset", "{}")
+            _run("chat", {"message": "what's my tax on 150k"})
+            response = _run("chat", {"message": phrase})
+            assert response["data"]["intent"] == "risk_assess", f"{phrase!r} did not chain"
+
+    def test_suggestions_chain_across_multiple_turns(self):
+        _run("chat", {"message": "what's my tax on 150k"})  # suggests risk_assess
+        second = _run("chat", {"message": "yes"})  # runs risk_assess, suggests deduction_optimize
+        assert second["data"]["intent"] == "risk_assess"
+        third = _run("chat", {"message": "yes"})  # runs deduction_optimize
+        assert third["data"]["intent"] == "deduction_optimize"
+
+    def test_a_new_real_topic_supersedes_a_pending_suggestion(self):
+        _run("chat", {"message": "what's my tax on 150k"})  # suggests risk_assess
+        # A genuine new question, not an affirmative — should win outright,
+        # not get swallowed by the pending suggestion.
+        response = _run("chat", {"message": "what's the SALT cap?"})
+        assert response["data"]["intent"] == "fact"
+
+    def test_a_flat_no_does_not_trigger_the_suggestion(self):
+        _run("chat", {"message": "what's my tax on 150k"})  # suggests risk_assess
+        response = _run("chat", {"message": "no"})
+        assert response["data"]["intent"] != "risk_assess"
+
+    def test_declining_clears_the_suggestion_so_a_later_yes_does_nothing_odd(self):
+        _run("chat", {"message": "what's my tax on 150k"})
+        _run("chat", {"message": "no"})
+        response = _run("chat", {"message": "yes"})
+        # With no pending suggestion left, a bare "yes" has no topic and no
+        # pending_intent either — falls through to the honest fallback.
+        assert response["data"]["intent"] == "platform_analyze"
+        assert response["data"]["matched"] is False
+
+    def test_compound_answers_do_not_add_a_suggestion(self):
+        _run("chat", {"message": "should I itemize my deductions and am I at audit risk on 150k"})
+        response = _run("chat", {"message": "yes"})
+        assert response["data"]["intent"] == "platform_analyze"
+        assert response["data"]["matched"] is False
+
+    def test_reset_clears_the_pending_suggestion(self):
+        _run("chat", {"message": "what's my tax on 150k"})
+        bridge.dispatch("chat_reset", "{}")
+        _run("chat", {"message": "I make 150k"})
+        response = _run("chat", {"message": "yes"})
+        assert response["data"]["intent"] != "risk_assess"
+
+
 class TestChatMemoryAndClarify:
     @pytest.fixture(autouse=True)
     def reset_conversation(self):
