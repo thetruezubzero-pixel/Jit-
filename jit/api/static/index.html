@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jit — Accounting &amp; Legal Analysis</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Jit</h1>
+    <p class="subtitle">Automatic Recursive Algorithmic Accounting &amp; Legal Analysis System</p>
+  </header>
+
+  <main>
+    <form id="case-form">
+      <section>
+        <h2>Case</h2>
+        <div class="row">
+          <label>Case ID
+            <input type="text" id="case_id" value="demo-case" required />
+          </label>
+          <label>Filing status
+            <select id="filing_status">
+              <option value="single">Single</option>
+              <option value="married_filing_jointly">Married filing jointly</option>
+              <option value="married_filing_separately">Married filing separately</option>
+              <option value="head_of_household">Head of household</option>
+              <option value="qualifying_surviving_spouse">Qualifying surviving spouse</option>
+            </select>
+          </label>
+          <label>State
+            <input type="text" id="state" value="CA" maxlength="2" />
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Income</h2>
+        <div id="incomes"></div>
+        <button type="button" class="secondary" data-add="income">+ Add income</button>
+      </section>
+
+      <section>
+        <h2>Deductions</h2>
+        <div id="deductions"></div>
+        <button type="button" class="secondary" data-add="deduction">+ Add deduction</button>
+      </section>
+
+      <section>
+        <h2>Legal documents</h2>
+        <div id="documents"></div>
+        <button type="button" class="secondary" data-add="document">+ Add document</button>
+      </section>
+
+      <button type="submit" id="submit-btn">Analyze case</button>
+    </form>
+
+    <section id="results" class="hidden">
+      <h2>Results</h2>
+      <div id="error" class="error hidden"></div>
+      <div id="results-grid" class="grid"></div>
+      <details id="audit-trail-wrap">
+        <summary>Audit trail</summary>
+        <ul id="audit-trail"></ul>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <p>Educational tool only — not legal or tax advice. Consult a qualified CPA or attorney.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

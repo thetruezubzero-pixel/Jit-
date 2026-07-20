@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Jit — Accounting &amp; Legal Analysis</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%E2%9A%96%EF%B8%8F</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Installable as a home-screen app (PWA): standalone display, no
+       browser chrome, its own icon — the closest a static site can get to
+       feeling like a native app across desktop, tablet, and iPhone. -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <meta name="theme-color" content="#0f1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Jit" />
+</head>
+<body>
+  <header>
+    <h1>Jit</h1>
+    <p class="subtitle">Automatic Recursive Algorithmic Accounting &amp; Legal Analysis System</p>
+    <p id="engine-status" class="engine-status">Loading Python engine&hellip;</p>
+  </header>
+
+  <main>
+    <!-- One free-text box, routed to whichever engine(s) it matches: tax
+         calculation, deductions, AMT, quarterly estimates, legal document
+         analysis, compliance, filing status, optimization strategies, audit
+         risk, or the full cross-module case analysis. Plain keyword/regex
+         routing in docs/py/bridge.py — not a language model. -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Ask Jit</h2>
+        <div class="panel-actions">
+          <button type="button" id="chat-share" class="link-btn">Share</button>
+          <button type="button" id="chat-reset" class="link-btn">Clear conversation</button>
+        </div>
+      </div>
+      <p class="hint">
+        One box for everything &mdash; tax, deductions, AMT, quarterly estimates,
+        a contract or clause, compliance (FBAR/FATCA), filing status, audit
+        risk, optimization strategies, or a straight tax-law fact. Try:
+        <em>&ldquo;What&rsquo;s my tax on 150k filing single in CA&rdquo;</em>,
+        <em>&ldquo;I&rsquo;m self-employed with 200k income, am I at audit risk?&rdquo;</em>, or
+        <em>&ldquo;What&rsquo;s the SALT cap?&rdquo;</em>
+      </p>
+      <div id="chat-log" class="chat-log"></div>
+      <div id="session-insights" class="insights-panel"></div>
+      <form id="chat-form">
+        <textarea id="chat-input" rows="2" placeholder="Ask about your tax, deductions, audit risk, a contract, filing status…"></textarea>
+        <button type="submit" class="run">Send</button>
+      </form>
+
+      <details class="settings">
+        <summary>Display settings</summary>
+        <p class="hint">
+          Your income/filing status/state are remembered across visits
+          (stored only in this browser) so you don't have to repeat
+          yourself every time you reopen the app &mdash; use
+          &ldquo;Clear conversation&rdquo; above to forget it.
+        </p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="compact-toggle" />
+          Compact result cards
+        </label>
+      </details>
+
+      <details class="settings">
+        <summary>AI assist settings (optional)</summary>
+        <p class="hint">
+          Everything above runs on plain, built-in logic — no AI, no server,
+          no cost. If you want an AI-generated answer for questions that
+          don't match any built-in calculator or fact, you can optionally
+          connect a free Google Gemini API key (no card required) from
+          <a href="https://ai.google.dev" target="_blank" rel="noopener">ai.google.dev</a>.
+          The key is stored only in this browser and sent directly from this
+          device to Google &mdash; never to any server of ours. Anyone with
+          access to this browser could read it back out, so only use a key
+          you're comfortable having on this device.
+        </p>
+        <label class="checkbox-row">
+          <input type="checkbox" id="ai-assist-toggle" />
+          Use AI assist for questions the built-in router can't classify
+        </label>
+        <div class="key-row">
+          <input type="password" id="gemini-key-input" placeholder="Gemini API key" autocomplete="off" />
+          <button type="button" id="gemini-key-save" class="link-btn">Save</button>
+          <button type="button" id="gemini-key-clear" class="link-btn">Clear</button>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <p>Runs entirely in your browser via Pyodide (Python/WebAssembly) — no server, no data ever leaves this device.</p>
+    <p>Educational tool only — not legal or tax advice. Consult a qualified CPA or attorney.</p>
+  </footer>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
