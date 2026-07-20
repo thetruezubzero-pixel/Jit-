@@ -1230,7 +1230,9 @@ def _compute_intent(
         reply = (
             f"On ${amount:,.0f} of taxable income, you're "
             f"{'likely' if result['is_subject_to_amt'] else 'probably not'} on the hook for "
-            f"AMT — that parallel tax system — with about ${result['amt_owed']:,.2f} owed there."
+            f"AMT — that parallel tax system — with about ${result['amt_owed']:,.2f} owed there. "
+            "(Assumes a flat 22% regular-tax rate as a placeholder — tell me your actual "
+            "regular tax for a precise comparison.)"
         )
     elif intent == "quarterly_estimate":
         result = quarterly_estimate(
@@ -1243,7 +1245,9 @@ def _compute_intent(
         )
         reply = (
             f"Ballpark ${amount * 0.24:,.0f} in annual tax means each quarterly payment "
-            f"should run about ${result['total_required'] / 4:,.2f}."
+            f"should run about ${result['total_required'] / 4:,.2f}. (That 24% is a "
+            "placeholder rate, not your real tax — give me your actual expected tax for "
+            "a precise number.)"
         )
     elif intent == "compliance_check":
         result = compliance_check(
@@ -1260,7 +1264,8 @@ def _compute_intent(
         reply = (
             f"Here's where you stand: overall compliance risk comes out "
             f"{result['overall_risk']}, with a compliance score of "
-            f"{result['compliance_score']:.2f}. {result['summary']}"
+            f"{result['compliance_score']:.2f}. {result['summary']} (Assumes 15% withheld "
+            "as a placeholder since you haven't told me your actual withholding.)"
         )
     elif intent == "document_analyze":
         result = document_analyze({"text": message, "title": "Chat-submitted text"})
@@ -1292,7 +1297,9 @@ def _compute_intent(
         )
         reply = (
             f"On ${amount:,.0f} AGI, going {result['recommended_method']} comes out ahead — "
-            f"about ${result['recommended_deduction']:,.0f} in deductions."
+            f"about ${result['recommended_deduction']:,.0f} in deductions. (Itemized total "
+            "here uses placeholder mortgage interest and charitable giving, not your real "
+            "numbers — tell me your actual deductions for a real comparison.)"
         )
     elif intent == "risk_assess":
         result = risk_assess(
@@ -1324,7 +1331,8 @@ def _compute_intent(
         top = result["strategies"][0]["title"] if result["strategies"] else None
         reply = (
             f"Best move here: {top}, worth about ${result['total_savings']:,.2f} in "
-            "potential savings."
+            "potential savings. (Based on a placeholder 24% current tax rate, not your "
+            "real number — tell me your actual tax for a precise savings estimate.)"
             if top
             else "Nothing specific jumps out as an optimization for this scenario."
         )

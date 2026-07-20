@@ -268,6 +268,45 @@ class TestKeywordAndStateMatchingEdgeCases:
         assert third["data"]["intent"] != "risk_assess"
 
 
+class TestFabricatedInputDisclosure:
+    """Several calculators (amt_calculate, quarterly_estimate,
+    compliance_check, deduction_optimize, algorithm_optimize) only ever
+    get one real figure from chat() -- the stated income -- and invent
+    placeholder numbers (a flat 22%/24% tax rate, 15% withholding, 8%
+    mortgage interest, 3% charitable giving) for everything else a real
+    calculation needs. Presenting the result as the user's real answer
+    with no indication those inputs were invented would be actively
+    misleading, so each of these replies must say so honestly."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_amt_reply_discloses_the_placeholder_tax_rate(self):
+        response = _run("chat", {"message": "am I subject to AMT on 300k income"})
+        assert "placeholder" in response["data"]["reply"].lower()
+
+    def test_quarterly_reply_discloses_the_placeholder_rate(self):
+        response = _run("chat", {"message": "what's my quarterly estimate on 150k"})
+        assert "placeholder" in response["data"]["reply"].lower()
+
+    def test_compliance_reply_discloses_the_placeholder_withholding(self):
+        response = _run("chat", {"message": "check my compliance on 200k income"})
+        assert "placeholder" in response["data"]["reply"].lower()
+
+    def test_deduction_reply_discloses_the_placeholder_itemized_amounts(self):
+        response = _run("chat", {"message": "what deductions should I take on 90k"})
+        assert "placeholder" in response["data"]["reply"].lower()
+
+    def test_optimizer_reply_discloses_the_placeholder_tax_rate(self):
+        response = _run(
+            "chat", {"message": "what optimization strategies can save me money on 220k income"}
+        )
+        assert "placeholder" in response["data"]["reply"].lower()
+
+
 class TestChat:
     @pytest.fixture(autouse=True)
     def reset_conversation(self):
