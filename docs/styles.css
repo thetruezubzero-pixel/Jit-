@@ -78,6 +78,8 @@ main {
   border-radius: 0;
 }
 .link-btn:hover { color: var(--accent); }
+.link-btn:disabled { opacity: 0.4; cursor: not-allowed; text-decoration: none; }
+.link-btn:disabled:hover { color: var(--muted); }
 
 form {
   background: var(--surface);
@@ -216,6 +218,42 @@ pre.raw {
 
 footer { text-align: center; color: var(--muted); font-size: 0.75rem; padding: 1.5rem 1rem; }
 footer p { margin: 0.25rem 0; }
+footer a { color: var(--muted); }
+footer a:hover { color: var(--accent); }
+
+/* Terms/Privacy pages */
+.legal-page { line-height: 1.6; }
+.legal-page h2 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
+.legal-page h2:first-of-type { margin-top: 0; }
+.legal-page p { margin: 0.5rem 0; color: var(--text); }
+.legal-list { margin: 0.5rem 0; padding-left: 1.3rem; }
+.legal-list li { margin: 0.35rem 0; }
+.legal-updated { color: var(--muted); font-size: 0.8rem; }
+.draft-notice {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+/* PDF export (Jit Pro): print only the conversation itself, cleanly. */
+@media print {
+  header .engine-status,
+  .panel-actions,
+  .hint,
+  #chat-form,
+  details.settings,
+  footer {
+    display: none !important;
+  }
+  body { background: #fff; color: #000; }
+  .chat-msg { break-inside: avoid; border: 1px solid #ccc !important; }
+  .card { break-inside: avoid; border: 1px solid #ccc !important; background: #fff !important; }
+  .insights-panel { border: 1px solid #ccc !important; background: #fff !important; }
+}
 
 @media (prefers-color-scheme: light) {
   :root {
