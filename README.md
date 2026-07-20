@@ -33,11 +33,14 @@ Android, or desktop browser via GitHub Pages alone, at no cost:
 Pages Deployments API, since that API's health-check call is a single point
 of failure the site doesn't otherwise need.)
 
-Every module gets its own tab (Tax Calculator, Deductions, AMT, Quarterly,
-Legal Document, Compliance, Filing Status, Optimizer, Audit Risk) plus a
-"Full Case" tab that runs the same cross-module `JitPlatform` orchestration
-as the REST API — all client-side. No data ever leaves the device; there's
-no server to send it to. See `docs/py/bridge.py` for the dispatch layer and
+The site is a single chat box. Plain keyword/regex routing (not a language
+model — no paid API, no external calls) reads your message and dispatches
+to whichever engine answers it — tax calculation, deductions, AMT,
+quarterly estimates, a legal document, compliance (FBAR/FATCA), filing
+status, audit risk, optimization strategies, or the full cross-module
+`JitPlatform` case analysis if nothing more specific matches. No data ever
+leaves the device; there's no server to send it to. See
+`docs/py/bridge.py` for the routing/dispatch layer and
 `scripts/sync_pyodide_source.sh` for what gets synced.
 
 ---
