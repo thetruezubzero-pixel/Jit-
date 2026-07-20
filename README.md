@@ -13,6 +13,27 @@ decision-making, and risk assessment.
 > constitute legal or tax advice. Always consult a qualified CPA, enrolled
 > agent, or tax attorney before filing or making financial decisions.
 
+## Use it on your phone — free, GitHub-only, no server
+
+`docs/` is a static frontend that runs the real `jit` engines **entirely in
+the browser** via [Pyodide](https://pyodide.org) (Python compiled to
+WebAssembly) — there is no backend to host, so it works from an iPhone,
+Android, or desktop browser via GitHub Pages alone, at no cost:
+
+1. In this repo: **Settings → Pages → Build and deployment → Source: GitHub
+   Actions**. (One-time; nobody else needs to touch this again.)
+2. Push to `main` or any `claude/**` branch. `.github/workflows/pages.yml`
+   vendors the Pyodide runtime, syncs the current `jit/` source into `docs/`,
+   and deploys it — so the site can never drift from the real engines.
+3. Open `https://thetruezubzero-pixel.github.io/Jit-/` on any device.
+
+Every module gets its own tab (Tax Calculator, Deductions, AMT, Quarterly,
+Legal Document, Compliance, Filing Status, Optimizer, Audit Risk) plus a
+"Full Case" tab that runs the same cross-module `JitPlatform` orchestration
+as the REST API — all client-side. No data ever leaves the device; there's
+no server to send it to. See `docs/py/bridge.py` for the dispatch layer and
+`scripts/sync_pyodide_source.sh` for what gets synced.
+
 ---
 
 ## Table of Contents

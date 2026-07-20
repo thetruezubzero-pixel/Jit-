@@ -1,0 +1,177 @@
+"""Tests for docs/py/bridge.py — the dispatch layer the client-side,
+Pyodide-powered GitHub Pages frontend calls into. Runs the same handlers
+under plain CPython so regressions are caught without a browser.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+DOCS_PY = Path(__file__).resolve().parent.parent / "docs" / "py"
+if str(DOCS_PY) not in sys.path:
+    sys.path.insert(0, str(DOCS_PY))
+
+import bridge  # noqa: E402
+
+
+def _run(module_name: str, payload: dict) -> dict:
+    return json.loads(bridge.dispatch(module_name, json.dumps(payload)))
+
+
+class TestDispatch:
+    def test_unknown_module_reports_failure(self):
+        response = _run("not_a_real_module", {})
+        assert response["success"] is False
+        assert "Unknown module" in response["error"]
+
+    def test_tax_calculate_includes_property_backed_total_tax(self):
+        response = _run(
+            "tax_calculate",
+            {
+                "gross_income": 145000,
+                "filing_status": "single",
+                "w2_wages": 120000,
+                "self_employment_income": 15000,
+                "long_term_capital_gains": 7000,
+                "state_code": "CA",
+            },
+        )
+        assert response["success"] is True
+        data = response["data"]
+        # total_tax is a @property on TaxResult, not a dataclass field —
+        # this is the exact bug the property-walk in to_jsonable fixes.
+        assert data["total_tax"] == pytest.approx(data["total_federal_tax"] + data["state_tax"])
+        assert data["total_tax"] > 0
+
+    def test_deduction_optimize(self):
+        response = _run(
+            "deduction_optimize",
+            {
+                "agi": 120000,
+                "filing_status": "single",
+                "deductions": [
+                    {"deduction_type": "mortgage_interest", "amount": 12000},
+                    {"deduction_type": "charitable_cash", "amount": 4000},
+                ],
+            },
+        )
+        assert response["success"] is True
+        assert response["data"]["recommended_method"] == "itemized"
+
+    def test_amt_calculate(self):
+        response = _run(
+            "amt_calculate",
+            {
+                "regular_taxable_income": 300000,
+                "regular_tax": 60000,
+                "filing_status": "single",
+                "iso_bargain_element": 50000,
+            },
+        )
+        assert response["success"] is True
+        assert "is_subject_to_amt" in response["data"]
+
+    def test_quarterly_estimate(self):
+        response = _run(
+            "quarterly_estimate",
+            {
+                "expected_total_tax": 40000,
+                "prior_year_tax": 38000,
+                "prior_year_agi": 150000,
+                "filing_status": "single",
+            },
+        )
+        assert response["success"] is True
+        assert len(response["data"]["quarterly_payments"]) == 4
+
+    def test_document_analyze(self):
+        response = _run(
+            "document_analyze",
+            {
+                "text": "This agreement includes indemnification language under 26 U.S.C. 61.",
+                "title": "Contract",
+            },
+        )
+        assert response["success"] is True
+        assert response["data"]["risk_score"] > 0
+
+    def test_compliance_check_includes_property_backed_is_compliant(self):
+        response = _run(
+            "compliance_check",
+            {
+                "gross_income": 200000,
+                "filing_status": "single",
+                "taxes_withheld": 35000,
+                "taxes_paid": 0,
+                "has_foreign_accounts": True,
+                "aggregate_foreign_balance": 25000,
+            },
+        )
+        assert response["success"] is True
+        # is_compliant is a @property on ComplianceResult, not a dataclass field.
+        assert "is_compliant" in response["data"]
+
+    def test_filing_status_tree(self):
+        response = _run(
+            "filing_status_tree", {"is_married": False, "has_qualifying_dependent": True}
+        )
+        assert response["success"] is True
+        assert "Head of Household" in response["data"]["recommendation"]
+
+    def test_deduction_method_tree(self):
+        response = _run(
+            "deduction_method_tree", {"itemized_deductions": 16000, "standard_deduction": 14600}
+        )
+        assert response["success"] is True
+        assert "itemize" in response["data"]["recommendation"].lower()
+
+    def test_algorithm_optimize_includes_property_backed_savings_percentage(self):
+        response = _run(
+            "algorithm_optimize",
+            {
+                "gross_income": 145000,
+                "current_tax": 30000,
+                "marginal_rate": 0.22,
+                "has_401k_access": True,
+                "self_employment_income": 15000,
+            },
+        )
+        assert response["success"] is True
+        assert "savings_percentage" in response["data"]
+
+    def test_risk_assess(self):
+        response = _run(
+            "risk_assess",
+            {"agi": 250000, "has_schedule_c": True, "schedule_c_income": 50000},
+        )
+        assert response["success"] is True
+        assert response["data"]["estimated_audit_probability"] > 0
+
+    def test_platform_analyze_runs_all_three_modules(self):
+        response = _run(
+            "platform_analyze",
+            {
+                "case_id": "demo",
+                "filing_status": "single",
+                "state": "CA",
+                "incomes": [{"kind": "w2", "amount": 120000}],
+                "deductions": [{"name": "charity", "amount": 4000}],
+                "legal_documents": [{"title": "Doc", "text": "Contains indemnification."}],
+            },
+        )
+        assert response["success"] is True
+        assert set(response["data"].keys()) >= {"accounting", "legal", "algorithms"}
+        assert [e["topic"] for e in response["data"]["audit_trail"]] == [
+            "accounting.completed",
+            "legal.completed",
+            "algorithms.completed",
+        ]
+
+    def test_engine_error_is_reported_not_raised(self):
+        response = _run("tax_calculate", {"filing_status": "not_a_real_status"})
+        assert response["success"] is False
+        assert "error" in response

@@ -71,3 +71,11 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# GitHub Pages frontend: generated at deploy time (see .github/workflows/pages.yml
+# and scripts/sync_pyodide_source.sh) so the shipped jit/ source and vendored
+# Pyodide runtime never drift from or bloat the repo.
+/docs/py/jit/
+/docs/py/manifest.json
+/docs/vendor/
+/node_modules/

@@ -1,0 +1,71 @@
+name: Deploy Pages
+
+# Builds and deploys the docs/ static frontend to GitHub Pages. The site runs
+# the real jit accounting/legal/algorithms engines client-side via Pyodide
+# (Python compiled to WebAssembly) — no server, so this workflow is the only
+# "backend" the app needs: it vendors the Pyodide runtime and syncs the
+# pure-Python jit source into docs/ at build time, then publishes docs/ as-is.
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths:
+      - "docs/**"
+      - "jit/**"
+      - "scripts/sync_pyodide_source.sh"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node (for vendoring the Pyodide npm package)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Vendor the Pyodide runtime into docs/vendor/pyodide
+        run: |
+          set -euo pipefail
+          mkdir -p docs/vendor/pyodide
+          npm install --no-save pyodide@0.26.4
+          cp node_modules/pyodide/pyodide.mjs \
+             node_modules/pyodide/pyodide.asm.js \
+             node_modules/pyodide/pyodide.asm.wasm \
+             node_modules/pyodide/pyodide-lock.json \
+             node_modules/pyodide/python_stdlib.zip \
+             docs/vendor/pyodide/
+
+      - name: Sync the jit engine source for the browser
+        run: bash scripts/sync_pyodide_source.sh
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
