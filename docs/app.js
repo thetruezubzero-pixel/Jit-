@@ -7,6 +7,18 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {
     /* Non-fatal — the site still works without offline/repeat-visit caching. */
   });
+
+  // Without this, a new deploy's service worker installs in the background
+  // but a page already open (or reopened from cache) keeps being served by
+  // the OLD worker until it's closed and reopened a second time — a shipped
+  // fix can look like it never went out. Reload once, automatically, the
+  // moment a new worker actually takes control.
+  let reloadedForUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadedForUpdate) return;
+    reloadedForUpdate = true;
+    window.location.reload();
+  });
 }
 
 const statusEl = document.getElementById("engine-status");

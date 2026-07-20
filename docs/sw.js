@@ -10,7 +10,12 @@
 //     serve instantly from cache, then refetch in the background so the next
 //     visit picks up whatever changed on the last deploy.
 
-const CACHE_VERSION = "v1";
+// Bump this on every deploy that changes app-shell files (styles.css,
+// app.js, index.html, bridge.py). Without a version bump, "activate"'s
+// cache cleanup has nothing to clean up and a returning visitor can stay
+// stuck on stale assets far longer than intended — this is what caused a
+// shipped CSS fix to not actually show up on a real device.
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `jit-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = ["./", "./index.html", "./styles.css", "./app.js", "./py/bridge.py"];
@@ -57,7 +62,10 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cached = await cache.match(request);
-      const networkFetch = fetch(request)
+      // "reload" bypasses the browser's own HTTP cache, not just this
+      // Cache API layer — otherwise "revalidate" can silently hand back the
+      // same stale bytes the HTTP cache already had, defeating the point.
+      const networkFetch = fetch(request, { cache: "reload" })
         .then((response) => {
           if (response.ok) cache.put(request, response.clone());
           return response;

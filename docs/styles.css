@@ -44,6 +44,22 @@ main {
   padding: 1rem;
 }
 
+/* Tablet and up: a bit more breathing room than the phone-first defaults
+   above, without letting line length get so wide it's hard to read. */
+@media (min-width: 640px) {
+  header { padding: 2rem 1.5rem 1rem; }
+  header h1 { font-size: 2rem; }
+  .subtitle { font-size: 1rem; }
+  main { max-width: 820px; padding: 1.5rem; }
+}
+
+/* Desktop: slightly wider still, plus a touch more base font size since
+   there's no longer a thumb/viewport constraint driving the phone sizing. */
+@media (min-width: 1024px) {
+  main { max-width: 900px; }
+  body { font-size: 1.05rem; }
+}
+
 .panel h2 { margin: 0 0 0.25rem; font-size: 1.2rem; }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
 .panel-head h2 { margin: 0; }
