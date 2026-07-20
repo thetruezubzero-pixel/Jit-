@@ -899,6 +899,14 @@ def _classify_intents(text: str) -> list[str]:
     return [intent]
 
 
+def _matched_keywords_for(intent: str, text: str) -> list[str]:
+    """Which of an intent's keywords actually appear in this message —
+    real routing transparency (what triggered this label), not a model
+    confidence score."""
+    lowered = text.lower()
+    return [kw for kw in _INTENT_KEYWORDS.get(intent, ()) if kw in lowered]
+
+
 def _compute_intent(
     intent: str,
     message: str,
@@ -1078,6 +1086,7 @@ def chat(payload: dict) -> dict:
         # already remembered, so it's answered immediately, standalone.
         return {
             "intent": "fact",
+            "routing_reason": "fact_lookup",
             "extracted": {"amount": None, "filing_status": None, "state": None},
             "reply": fact_answer,
             "result": {},
@@ -1103,6 +1112,10 @@ def chat(payload: dict) -> dict:
         message, "business owner", "own a business", "my business", "llc", "s-corp"
     )
 
+    # A transparent, rule-based label for *why* this message routed the way
+    # it did — real routing metadata, not a fabricated confidence score.
+    # Surfaced in every response so the routing decision is inspectable
+    # (used by the frontend and by tests) instead of being a black box.
     suggested_intent = _conversation_context["suggested_intent"]
     if suggested_intent and _is_affirmative(message):
         # A short "yes"/"sure" reply to the question chat() just asked
@@ -1110,15 +1123,21 @@ def chat(payload: dict) -> dict:
         # directly rather than trying to classify "yes" as a topic.
         intents = [suggested_intent]
         intent_matched = True
+        routing_reason = "resumed_suggestion"
     else:
         intents = _classify_intents(message)
         intent_matched = bool(intents)
-        if not intent_matched and _conversation_context["pending_intent"]:
+        if intent_matched:
+            routing_reason = "keyword_match"
+        elif _conversation_context["pending_intent"]:
             # This message is just an answer ("150k, self-employed") to the
             # question chat() asked last turn, not a fresh, unrelated topic —
             # resume what was actually being asked about instead of falling
             # back to the generic full-case default.
             intents = [_conversation_context["pending_intent"]]
+            routing_reason = "resumed_pending_clarify"
+        else:
+            routing_reason = "unmatched"
 
     # An unmatched message still defaults to platform_analyze for the
     # purposes of the amount-needed check below, exactly like a single
@@ -1132,6 +1151,7 @@ def chat(payload: dict) -> dict:
         _conversation_context["suggested_intent"] = None
         return {
             "intent": "clarify",
+            "routing_reason": routing_reason,
             "extracted": {
                 "amount": None,
                 "filing_status": filing_status,
@@ -1171,6 +1191,7 @@ def chat(payload: dict) -> dict:
         return {
             "intent": intent,
             "matched": intent_matched,
+            "routing_reason": routing_reason,
             "extracted": {
                 "amount": amount,
                 "filing_status": filing_status,
@@ -1194,6 +1215,12 @@ def chat(payload: dict) -> dict:
     for i, result, _ in computed:
         _record_session_entry(i, amount, self_employed, business_owner, state, result)
 
+    matched_keywords = (
+        {i: _matched_keywords_for(i, message) for i, _, _ in computed}
+        if routing_reason == "keyword_match"
+        else {}
+    )
+
     if len(computed) == 1:
         intent, result, reply = computed[0]
         next_intent = _NEXT_SUGGESTION.get(intent)
@@ -1211,6 +1238,8 @@ def chat(payload: dict) -> dict:
     return {
         "intent": intent,
         "matched": intent_matched,
+        "routing_reason": routing_reason,
+        "matched_keywords": matched_keywords,
         "extracted": {
             "amount": amount,
             "filing_status": filing_status,
@@ -1352,7 +1381,21 @@ def session_insights(payload: dict) -> dict:
             "worth checking 1099 filing requirements and estimated-payment adequacy."
         )
 
-    return {"insights": insights, "entries_analyzed": len(_session_history)}
+    # Cross-referencing the individual signals above into one summary level
+    # — real aggregation over already-computed heuristics (how many
+    # independent flags co-occur), not a new model or a fabricated score.
+    if len(insights) >= 2:
+        attention_level = "elevated"
+    elif len(insights) == 1:
+        attention_level = "mild"
+    else:
+        attention_level = "clear"
+
+    return {
+        "insights": insights,
+        "entries_analyzed": len(_session_history),
+        "attention_level": attention_level,
+    }
 
 
 _HANDLERS = {
