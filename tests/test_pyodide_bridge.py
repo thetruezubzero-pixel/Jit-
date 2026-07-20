@@ -215,6 +215,59 @@ class TestAmountExtraction:
         assert bridge._extract_amount("5000 miles driven for work") == 5_000.0
 
 
+class TestKeywordAndStateMatchingEdgeCases:
+    """Regressions found during an independent code review: plain substring
+    keyword checks had no notion of word edges, so a short keyword could
+    fire inside an unrelated word, and the state regex accepted any two
+    capital letters after "in " as if it were a real state code."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_owe_does_not_match_inside_lower(self):
+        response = _run("chat", {"message": "the price is much lower than expected, 150k income"})
+        assert response["data"]["matched"] is False
+
+    def test_amt_keyword_does_not_match_inside_dreamt(self):
+        response = _run("chat", {"message": "I dreamt about my finances, 150k income"})
+        assert response["data"]["matched"] is False
+
+    def test_amt_keyword_still_matches_as_a_real_word(self):
+        response = _run("chat", {"message": "what is my AMT liability on 300k"})
+        assert response["data"]["intent"] == "amt_calculate"
+
+    def test_owe_keyword_still_matches_as_a_real_word(self):
+        response = _run("chat", {"message": "how much do I owe on 150k"})
+        assert response["data"]["intent"] == "tax_calculate"
+
+    def test_invalid_two_letter_code_is_not_read_as_a_state(self):
+        # "investing in IT stocks" used to be misread as the state "IT" --
+        # not a real US state code.
+        response = _run("chat", {"message": "what's my tax on 150k investing in IT stocks"})
+        assert response["data"]["extracted"]["state"] == "CA"
+        assert "assuming CA" in response["data"]["reply"]
+
+    def test_valid_two_letter_code_is_still_read_as_a_state(self):
+        response = _run("chat", {"message": "what's my tax on 150k in NY"})
+        assert response["data"]["extracted"]["state"] == "NY"
+
+    def test_fact_lookup_clears_a_stale_pending_suggestion(self):
+        # Regression: chat()'s follow-up suggestion ("want your audit risk
+        # checked too?") used to survive a fact lookup in between, so a
+        # later "yes" -- unrelated to the original suggestion -- would
+        # incorrectly resume it.
+        first = _run("chat", {"message": "what's my tax on 150k"})
+        assert "audit risk" in first["data"]["reply"].lower()
+
+        _run("chat", {"message": "what's the salt cap"})
+
+        third = _run("chat", {"message": "yes"})
+        assert third["data"]["intent"] != "risk_assess"
+
+
 class TestChat:
     @pytest.fixture(autouse=True)
     def reset_conversation(self):

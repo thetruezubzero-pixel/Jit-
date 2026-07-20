@@ -312,21 +312,101 @@ _STATE_NAMES = {
     "illinois": "IL",
 }
 
+# All 50 states + DC, so "in IT" (as in "investing in IT stocks") doesn't
+# get misread as the state code "IT" -- the old check accepted *any* two
+# capital letters after "in ", real state or not.
+_VALID_STATE_CODES = {
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY",
+    "DC",
+}
 
-def _extract_state(text: str) -> str:
+
+def _extract_state(text: str) -> str | None:
+    """Return a state code if one was actually stated, else None -- the
+    caller decides what "no state given" should fall back to, rather than
+    this function silently picking CA itself."""
     lowered = text.lower()
     for name, code in _STATE_NAMES.items():
         if name in lowered:
             return code
     import re
 
-    match = re.search(r"\bin ([A-Z]{2})\b", text)
-    return match.group(1) if match else "CA"
+    match = re.search(r"\bin ([A-Za-z]{2})\b", text)
+    if match:
+        code = match.group(1).upper()
+        if code in _VALID_STATE_CODES:
+            return code
+    return None
+
+
+def _mentions_state(text: str) -> bool:
+    return _extract_state(text) is not None
+
+
+def _contains_keyword(lowered_text: str, keyword: str) -> bool:
+    """Word-*start*-boundary-aware substring match, so a short keyword like
+    "amt" or "owe" doesn't fire mid-word ("dreamt", "lower") -- unlike a
+    plain `keyword in text` check, which has no notion of word edges at
+    all. Only the leading edge is required, not a trailing one, so this
+    still deliberately catches inflected forms a strict whole-word match
+    would miss: "tax" inside "taxes", "deduction" inside "deductions"."""
+    import re
+
+    return re.search(r"\b" + re.escape(keyword.strip()), lowered_text) is not None
 
 
 def _has_any(text: str, *keywords: str) -> bool:
     lowered = text.lower()
-    return any(kw in lowered for kw in keywords)
+    return any(_contains_keyword(lowered, kw) for kw in keywords)
 
 
 def _mentions_filing_status(text: str) -> bool:
@@ -341,14 +421,6 @@ def _mentions_filing_status(text: str) -> bool:
         "head of household",
         " hoh",
     )
-
-
-def _mentions_state(text: str) -> bool:
-    if _has_any(text, *_STATE_NAMES):
-        return True
-    import re
-
-    return bool(re.search(r"\bin ([A-Z]{2})\b", text))
 
 
 # Remembered across messages within one browser session (this module stays
@@ -1065,7 +1137,7 @@ def _classify_intent(text: str) -> tuple[str, bool]:
     """
     lowered = text.lower()
     scores = {
-        intent: sum(1 for kw in keywords if kw in lowered)
+        intent: sum(1 for kw in keywords if _contains_keyword(lowered, kw))
         for intent, keywords in _INTENT_KEYWORDS.items()
     }
     best_intent = max(scores, key=scores.get)
@@ -1098,7 +1170,7 @@ def _classify_intents(text: str) -> list[str]:
         if other in (intent, "platform_analyze"):
             continue
         weak = _WEAK_KEYWORDS.get(other, set())
-        if any(kw in lowered for kw in keywords if kw not in weak):
+        if any(_contains_keyword(lowered, kw) for kw in keywords if kw not in weak):
             return [intent, other]
 
     return [intent]
@@ -1109,7 +1181,7 @@ def _matched_keywords_for(intent: str, text: str) -> list[str]:
     real routing transparency (what triggered this label), not a model
     confidence score."""
     lowered = text.lower()
-    return [kw for kw in _INTENT_KEYWORDS.get(intent, ()) if kw in lowered]
+    return [kw for kw in _INTENT_KEYWORDS.get(intent, ()) if _contains_keyword(lowered, kw)]
 
 
 def _compute_intent(
@@ -1300,7 +1372,11 @@ def chat(payload: dict) -> dict:
     if fact_match is not None:
         # A factual lookup ("what's the SALT cap") doesn't depend on the
         # user's own numbers and shouldn't disturb whatever topic/amount is
-        # already remembered, so it's answered immediately, standalone.
+        # already remembered, so it's answered immediately, standalone. It
+        # does clear any pending suggestion, though — otherwise a later
+        # "yes" would resume a suggestion from before this topic-switch, as
+        # if it were still what "yes" was replying to.
+        _conversation_context["suggested_intent"] = None
         fact_answer, fact_citation = fact_match
         return {
             "intent": "fact",
@@ -1319,16 +1395,15 @@ def chat(payload: dict) -> dict:
         if _mentions_filing_status(message)
         else (_conversation_context["filing_status"] or "single")
     )
+    extracted_state = _extract_state(message)
     state = (
-        _extract_state(message)
-        if _mentions_state(message)
-        else (_conversation_context["state"] or "CA")
+        extracted_state if extracted_state is not None else (_conversation_context["state"] or "CA")
     )
     # Tracked separately from `state` itself, since once a default gets
     # remembered in _conversation_context there'd be no way to tell a real
     # "CA" the user typed apart from a silent guess — this is what makes it
     # possible to say so honestly in the reply instead of quietly assuming.
-    state_explicit = _mentions_state(message) or bool(_conversation_context["state_explicit"])
+    state_explicit = extracted_state is not None or bool(_conversation_context["state_explicit"])
     self_employed = _has_any(
         message, "self employ", "self-employ", "1099", "schedule c", "freelance"
     )
