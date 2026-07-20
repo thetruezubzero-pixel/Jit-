@@ -381,11 +381,11 @@ _NEXT_SUGGESTION = {
 }
 
 _SUGGESTION_TEXT = {
-    "tax_calculate": "Want your full tax calculated too?",
-    "risk_assess": "Want me to also check your audit risk?",
-    "deduction_optimize": "Want me to check your deductions too?",
-    "algorithm_optimize": "Want other tax-saving strategies too?",
-    "compliance_check": "Want a compliance check too?",
+    "tax_calculate": "Want me to run your full tax number too?",
+    "risk_assess": "Curious about your audit risk while we're at it?",
+    "deduction_optimize": "Want me to take a look at your deductions too?",
+    "algorithm_optimize": "Want a few tax-saving moves to consider too?",
+    "compliance_check": "Should I check your compliance status too?",
 }
 
 _AFFIRMATIVE_PHRASES = {
@@ -1135,9 +1135,9 @@ def _compute_intent(
             }
         )
         reply = (
-            f"On ${amount:,.0f} of income filing {filing_status.replace('_', ' ')} in {state}, "
-            f"your estimated total tax is ${result['total_tax']:,.2f} "
-            f"(effective rate {result['effective_total_rate']:.1%})."
+            f"Alright — ${amount:,.0f} in income, filing {filing_status.replace('_', ' ')} in "
+            f"{state}: you're looking at about ${result['total_tax']:,.2f} total tax, "
+            f"roughly {result['effective_total_rate']:.1%} of it overall."
         )
     elif intent == "amt_calculate":
         result = amt_calculate(
@@ -1148,9 +1148,9 @@ def _compute_intent(
             }
         )
         reply = (
-            f"On ${amount:,.0f} of taxable income, you are "
-            f"{'likely' if result['is_subject_to_amt'] else 'not likely'} subject to AMT "
-            f"(AMT owed: ${result['amt_owed']:,.2f})."
+            f"On ${amount:,.0f} of taxable income, you're "
+            f"{'likely' if result['is_subject_to_amt'] else 'probably not'} on the hook for "
+            f"AMT — that parallel tax system — with about ${result['amt_owed']:,.2f} owed there."
         )
     elif intent == "quarterly_estimate":
         result = quarterly_estimate(
@@ -1162,8 +1162,8 @@ def _compute_intent(
             }
         )
         reply = (
-            f"Based on an estimated ${amount * 0.24:,.0f} annual tax, your quarterly "
-            f"payment should be about ${result['total_required'] / 4:,.2f}."
+            f"Ballpark ${amount * 0.24:,.0f} in annual tax means each quarterly payment "
+            f"should run about ${result['total_required'] / 4:,.2f}."
         )
     elif intent == "compliance_check":
         result = compliance_check(
@@ -1178,14 +1178,16 @@ def _compute_intent(
             }
         )
         reply = (
-            f"Compliance check: overall risk is {result['overall_risk']}, "
-            f"compliance score {result['compliance_score']:.2f}. {result['summary']}"
+            f"Here's where you stand: overall compliance risk comes out "
+            f"{result['overall_risk']}, with a compliance score of "
+            f"{result['compliance_score']:.2f}. {result['summary']}"
         )
     elif intent == "document_analyze":
         result = document_analyze({"text": message, "title": "Chat-submitted text"})
         reply = (
-            f"Risk score {result['risk_score']:.2f}, found {len(result['citations'])} citation(s) "
-            f"and {len(result['risk_flags'])} risk flag(s)."
+            f"Went through it — risk score {result['risk_score']:.2f}, with "
+            f"{len(result['citations'])} citation(s) and {len(result['risk_flags'])} "
+            f"flag(s) worth a look."
         )
     elif intent == "filing_status_tree":
         result = filing_status_tree(
@@ -1209,8 +1211,8 @@ def _compute_intent(
             }
         )
         reply = (
-            f"On ${amount:,.0f} AGI, {result['recommended_method']} deduction is better "
-            f"(${result['recommended_deduction']:,.0f})."
+            f"On ${amount:,.0f} AGI, going {result['recommended_method']} comes out ahead — "
+            f"about ${result['recommended_deduction']:,.0f} in deductions."
         )
     elif intent == "risk_assess":
         result = risk_assess(
@@ -1223,8 +1225,8 @@ def _compute_intent(
             }
         )
         reply = (
-            f"Your audit risk rating is {result['audit_risk_rating']} "
-            f"(estimated probability {result['estimated_audit_probability']:.2%})."
+            f"Your audit risk rating comes out {result['audit_risk_rating']} — about a "
+            f"{result['estimated_audit_probability']:.2%} estimated probability."
         )
     elif intent == "algorithm_optimize":
         result = algorithm_optimize(
@@ -1241,9 +1243,10 @@ def _compute_intent(
         )
         top = result["strategies"][0]["title"] if result["strategies"] else None
         reply = (
-            f"Top strategy: {top}. Total potential savings: ${result['total_savings']:,.2f}."
+            f"Best move here: {top}, worth about ${result['total_savings']:,.2f} in "
+            "potential savings."
             if top
-            else "No specific optimization strategies applied for this scenario."
+            else "Nothing specific jumps out as an optimization for this scenario."
         )
     else:
         # A genuine "give me everything" request (matched the platform_analyze
@@ -1264,9 +1267,9 @@ def _compute_intent(
             }
         )
         reply = (
-            f"Full case: total tax ${result['accounting']['total_tax']:,.2f}, "
-            f"legal risk score {result['legal']['risk_score']:.2f}, "
-            f"recommendation: {result['algorithms']['primary_recommendation']}."
+            f"Full case: total tax comes to ${result['accounting']['total_tax']:,.2f}, "
+            f"legal risk score {result['legal']['risk_score']:.2f}, and the top move is "
+            f"{result['algorithms']['primary_recommendation']}."
         )
     return result, reply
 
@@ -1366,8 +1369,8 @@ def chat(payload: dict) -> dict:
                 "business_owner": business_owner,
             },
             "reply": (
-                "I don't have an income figure for this yet — what's your approximate "
-                'income (e.g. "150k" or "$85,000")?'
+                "I don't have an income figure yet — what's your rough income? "
+                'Something like "150k" or "$85,000" works.'
             ),
             "result": {},
         }
@@ -1387,10 +1390,10 @@ def chat(payload: dict) -> dict:
         intent = "platform_analyze"
         result: dict = {}
         reply = (
-            "I'm not sure what you're asking. Try a question about tax, "
-            "deductions, AMT, quarterly estimates, a contract or document, "
-            "compliance (FBAR/FATCA), filing status, audit risk, tax-saving "
-            "strategies, or a specific tax-law fact."
+            "I'm not sure what you're asking — try me on tax, deductions, AMT, "
+            "quarterly estimates, a contract or document, compliance (FBAR/FATCA), "
+            "filing status, audit risk, tax-saving strategies, or a specific "
+            "tax-law fact."
         )
         _conversation_context["suggested_intent"] = None
         _record_session_entry(intent, amount, self_employed, business_owner, state, result)
