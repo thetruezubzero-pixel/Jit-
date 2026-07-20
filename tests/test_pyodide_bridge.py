@@ -293,6 +293,58 @@ class TestChat:
         assert "Full case:" in data["reply"]
 
 
+class TestCompoundIntents:
+    """A message naming two distinct topics with an explicit conjunction
+    cue ("and", "also", "plus") gets both answered in one reply, instead of
+    the router only ever picking a single best-scoring intent."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_two_distinct_topics_both_get_answered(self):
+        response = _run(
+            "chat", {"message": "should I itemize my deductions and am I at audit risk on 150k"}
+        )
+        data = response["data"]
+        assert data["intent"] == "deduction_optimize+risk_assess"
+        assert data["matched"] is True
+        assert set(data["result"].keys()) == {"deduction_optimize", "risk_assess"}
+        assert "recommended_method" in data["result"]["deduction_optimize"]
+        assert "audit_risk_rating" in data["result"]["risk_assess"]
+        assert "deduction" in data["reply"].lower() or "AGI" in data["reply"]
+        assert "audit risk" in data["reply"].lower()
+
+    def test_incidental_generic_overlap_does_not_trigger_a_compound_answer(self):
+        # "how can I save on taxes" scores algorithm_optimize AND, via the
+        # bare word "tax", also tax_calculate — but there's no conjunction
+        # cue, so this must stay a single-intent answer.
+        response = _run(
+            "chat", {"message": "I own a business making 300k, how can I save on taxes?"}
+        )
+        assert response["data"]["intent"] == "algorithm_optimize"
+
+    def test_generic_tax_overlap_with_a_conjunction_still_does_not_compound(self):
+        # Even with a conjunction cue present, the generic "tax" keyword
+        # alone shouldn't be enough to pull in tax_calculate as a bogus
+        # second topic when the message is really just about one thing.
+        response = _run(
+            "chat", {"message": "how can I save on taxes and reduce my tax bill on 150k"}
+        )
+        assert response["data"]["intent"] == "algorithm_optimize"
+
+    def test_compound_needs_amount_just_like_a_single_intent(self):
+        response = _run("chat", {"message": "should I itemize and am I at audit risk"})
+        assert response["data"]["intent"] == "clarify"
+
+    def test_compound_records_both_intents_in_session_history(self):
+        _run("chat", {"message": "should I itemize and am I at audit risk on 150k"})
+        response = _run("session_insights", {})
+        assert response["data"]["entries_analyzed"] == 2
+
+
 class TestChatMemoryAndClarify:
     @pytest.fixture(autouse=True)
     def reset_conversation(self):
@@ -402,6 +454,17 @@ class TestFactLookup:
             ("social security wage base this year", "$168,600"),
             ("net investment income tax rate", "3.8%"),
             ("additional medicare tax rate", "0.9%"),
+            ("mortgage interest deduction limit", "$750,000"),
+            ("student loan interest deduction amount", "$2,500"),
+            ("home sale exclusion amount", "$250,000"),
+            ("what's the wash sale rule", "30 days"),
+            ("how does a 1031 exchange work", "45 days"),
+            ("foreign earned income exclusion amount", "$126,500"),
+            ("section 179 limit", "$1,160,000"),
+            ("net operating loss carryforward rules", "80%"),
+            ("what is a mega backdoor roth", "$69,000"),
+            ("educator expense deduction amount", "$300"),
+            ("self employed health insurance deduction", "100%"),
         ],
     )
     def test_fact_answers_directly_without_a_calculation(self, message, expected_snippet):
@@ -425,6 +488,14 @@ class TestFactLookup:
     def test_fact_lookup_needs_no_amount_even_with_no_context(self):
         response = _run("chat", {"message": "what's the standard deduction?"})
         assert response["data"]["intent"] == "fact"
+
+    def test_more_specific_keyword_wins_over_a_substring_match(self):
+        # Regression: "mega backdoor roth" contains "backdoor roth" as a
+        # literal substring, and the plain backdoor-Roth fact is declared
+        # earlier in the list — _match_fact must prefer the longer, more
+        # specific keyword rather than whichever fact comes first.
+        response = _run("chat", {"message": "what is a mega backdoor roth"})
+        assert "$69,000" in response["data"]["reply"]
 
 
 class TestSessionInsights:
@@ -485,6 +556,35 @@ class TestSessionInsights:
         bridge.dispatch("chat_reset", "{}")
         response = _run("session_insights", {})
         assert response["data"]["entries_analyzed"] == 0
+
+    def test_quarterly_underpayment_is_flagged(self):
+        # chat()'s quarterly_estimate path doesn't assume any withholding,
+        # so remaining_to_pay is always positive here.
+        _run("chat", {"message": "what's my quarterly estimate on 200k"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "still owed against the safe harbor" in insights
+
+    def test_state_mismatch_is_flagged(self):
+        _run("chat", {"message": "what's my tax on 150k in NY"})
+        _run("chat", {"message": "what if I lived in CA instead"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "more than one state" in insights
+        assert "CA" in insights and "NY" in insights
+
+    def test_business_owner_without_compliance_check_is_flagged(self):
+        _run("chat", {"message": "I own a business making 300k, how can I save on taxes?"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "haven't run a compliance check" in insights
+
+    def test_business_owner_flag_clears_once_compliance_is_checked(self):
+        _run("chat", {"message": "I own a business making 300k, how can I save on taxes?"})
+        _run("chat", {"message": "compliance check please"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "haven't run a compliance check" not in insights
 
 
 class TestChatStatePersistence:

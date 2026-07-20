@@ -636,15 +636,136 @@ _FACTS = [
             "employer-matched and the thresholds aren't indexed for inflation."
         ),
     },
+    {
+        "keywords": ("mortgage interest deduction", "mortgage interest limit"),
+        "answer": (
+            "Mortgage interest is deductible (itemized) on up to $750,000 of "
+            "acquisition debt ($375,000 if married filing separately) for "
+            "loans originated after December 15, 2017. Loans from before then "
+            "are grandfathered at the older $1 million cap."
+        ),
+    },
+    {
+        "keywords": ("student loan interest deduction",),
+        "answer": (
+            "The student loan interest deduction: up to $2,500/year, taken "
+            "above the line (no itemizing needed). Phases out at MAGI "
+            "$80,000-$95,000 (single) or $165,000-$195,000 (married filing "
+            "jointly) in 2024; unavailable if married filing separately."
+        ),
+    },
+    {
+        "keywords": (
+            "home sale exclusion",
+            "section 121",
+            "sale of primary residence",
+            "home sale gain exclusion",
+        ),
+        "answer": (
+            "Section 121 lets you exclude up to $250,000 ($500,000 married "
+            "filing jointly) of gain on the sale of your primary residence, "
+            "as long as you owned and used it as your main home for at least "
+            "2 of the last 5 years before the sale."
+        ),
+    },
+    {
+        "keywords": ("wash sale rule", "wash sale"),
+        "answer": (
+            "The wash sale rule disallows a capital loss deduction if you buy "
+            "the same or a substantially identical security within 30 days "
+            "before or after the sale that created the loss. The disallowed "
+            "loss isn't gone — it's added to the cost basis of the "
+            "replacement shares."
+        ),
+    },
+    {
+        "keywords": ("1031 exchange", "like kind exchange", "like-kind exchange"),
+        "answer": (
+            "A 1031 (like-kind) exchange lets you defer capital gains tax on "
+            "the sale of investment or business real property by rolling the "
+            "proceeds into similar replacement property. You must identify "
+            "the replacement within 45 days of the sale and close within 180 "
+            "days. Only real property qualifies since the 2017 tax law."
+        ),
+    },
+    {
+        "keywords": (
+            "foreign earned income exclusion",
+            "feie",
+        ),
+        "answer": (
+            "The Foreign Earned Income Exclusion lets a qualifying U.S. "
+            "citizen or resident exclude up to $126,500 (2024) of foreign "
+            "earned income from U.S. tax, if you meet either the bona fide "
+            "residence test or the physical presence test (330 full days "
+            "abroad in a 12-month period)."
+        ),
+    },
+    {
+        "keywords": ("section 179", "bonus depreciation"),
+        "answer": (
+            "Section 179 lets a business immediately expense up to "
+            "$1,160,000 (2024) of qualifying equipment/property purchases, "
+            "phasing out above $2,890,000 in purchases for the year. Bonus "
+            "depreciation is 60% for 2024 (down from 100% in 2022), and is "
+            "scheduled to keep phasing down 20 points a year absent new "
+            "legislation."
+        ),
+    },
+    {
+        "keywords": ("net operating loss", "nol carryforward", "nol carryback"),
+        "answer": (
+            "Post-2017 net operating losses carry forward indefinitely but "
+            "can only offset up to 80% of taxable income in the year "
+            "they're used — they can no longer be carried back (except "
+            "certain farming and insurance-company losses)."
+        ),
+    },
+    {
+        "keywords": ("mega backdoor roth",),
+        "answer": (
+            "A mega backdoor Roth: if your 401(k) plan allows after-tax "
+            "contributions and in-service withdrawals/conversions, you can "
+            "contribute after-tax dollars beyond the $23,000 elective-"
+            "deferral limit, up to the overall $69,000 limit (2024), then "
+            "convert those after-tax dollars to Roth — much larger than a "
+            "regular backdoor Roth's $7,000 IRA cap."
+        ),
+    },
+    {
+        "keywords": ("educator expense deduction",),
+        "answer": (
+            "K-12 educators can deduct up to $300 (2024) of unreimbursed "
+            "classroom supplies above the line, no itemizing required. Two "
+            "educators married filing jointly can each claim their own $300."
+        ),
+    },
+    {
+        "keywords": ("self employed health insurance", "self-employed health insurance"),
+        "answer": (
+            "Self-employed people can deduct 100% of health insurance "
+            "premiums (for themselves, a spouse, and dependents) above the "
+            "line, limited to net self-employment income, and only for "
+            "months they weren't eligible for an employer-subsidized plan."
+        ),
+    },
 ]
 
 
 def _match_fact(text: str) -> str | None:
+    """Return the answer for the most specific keyword match, not just the
+    first one found in list order — e.g. "mega backdoor roth" must win over
+    the plain "backdoor roth" entry even though the latter's keyword is a
+    substring of the former's, and happens to be declared earlier."""
     lowered = text.lower()
+    best_answer = None
+    best_len = -1
     for fact in _FACTS:
-        if any(kw in lowered for kw in fact["keywords"]):
-            return fact["answer"]
-    return None
+        for kw in fact["keywords"]:
+            if kw in lowered and len(kw) > best_len:
+                best_answer = fact["answer"]
+                best_len = len(kw)
+    return best_answer
 
 
 _INTENT_KEYWORDS = {
@@ -666,6 +787,19 @@ _INTENT_KEYWORDS = {
     "platform_analyze": ("full analysis", "everything", "complete case", "full case", "overall"),
 }
 
+# Single, very generic words that legitimately drive *primary* intent
+# selection (below) but are too promiscuous to justify pulling in a
+# *second* intent for a compound question — nearly every tax-related
+# message contains "tax" somewhere, so it can't be trusted as a genuine
+# signal that a message is really asking about two separate things.
+_WEAK_KEYWORDS = {
+    "tax_calculate": {"tax"},
+    "deduction_optimize": {"deduction"},
+    "algorithm_optimize": {"optimize"},
+}
+
+_COMPOUND_CUES = (" and ", " also ", " as well", " plus ", "&")
+
 
 def _classify_intent(text: str) -> tuple[str, bool]:
     """Return (intent, matched) — matched is False when nothing in the text
@@ -683,80 +817,49 @@ def _classify_intent(text: str) -> tuple[str, bool]:
     return best_intent, True
 
 
-def chat(payload: dict) -> dict:
-    """Route a free-text message to the right engine(s) and reply in one place.
+def _classify_intents(text: str) -> list[str]:
+    """Like _classify_intent, but also detects a genuine second topic in a
+    compound question ("should I itemize and am I at audit risk") instead of
+    only ever answering the single best-scoring one.
 
-    This is plain keyword/regex matching, not a language model — it stays
-    within "no paid API, GitHub Pages only." It reuses the exact same
-    handlers as every other tab, just chosen from the message text instead
-    of a form.
+    A second intent only gets included when the message has an explicit
+    conjunction cue *and* that intent has a "strong" (non-generic) keyword
+    hit — otherwise incidental overlap (nearly everything mentions "tax")
+    would turn ordinary single-topic questions into noisy compound answers.
+    Capped at 2 intents so a reply never sprawls across the whole engine
+    suite.
     """
-    message = payload.get("message", "")
+    intent, matched = _classify_intent(text)
+    if not matched:
+        return []
 
-    fact_answer = _match_fact(message)
-    if fact_answer is not None:
-        # A factual lookup ("what's the SALT cap") doesn't depend on the
-        # user's own numbers and shouldn't disturb whatever topic/amount is
-        # already remembered, so it's answered immediately, standalone.
-        return {
-            "intent": "fact",
-            "extracted": {"amount": None, "filing_status": None, "state": None},
-            "reply": fact_answer,
-            "result": {},
-        }
+    lowered = text.lower()
+    if not any(cue in lowered for cue in _COMPOUND_CUES):
+        return [intent]
 
-    extracted_amount = _extract_amount(message)
-    amount = extracted_amount if extracted_amount is not None else _conversation_context["amount"]
+    for other, keywords in _INTENT_KEYWORDS.items():
+        if other in (intent, "platform_analyze"):
+            continue
+        weak = _WEAK_KEYWORDS.get(other, set())
+        if any(kw in lowered for kw in keywords if kw not in weak):
+            return [intent, other]
 
-    filing_status = (
-        _extract_filing_status(message)
-        if _mentions_filing_status(message)
-        else (_conversation_context["filing_status"] or "single")
-    )
-    state = (
-        _extract_state(message)
-        if _mentions_state(message)
-        else (_conversation_context["state"] or "CA")
-    )
-    self_employed = _has_any(
-        message, "self employ", "self-employ", "1099", "schedule c", "freelance"
-    )
-    business_owner = _has_any(
-        message, "business owner", "own a business", "my business", "llc", "s-corp"
-    )
+    return [intent]
 
-    intent, intent_matched = _classify_intent(message)
-    if not intent_matched and _conversation_context["pending_intent"]:
-        # This message is just an answer ("150k, self-employed") to the
-        # question chat() asked last turn, not a fresh, unrelated topic —
-        # resume what was actually being asked about instead of falling
-        # back to the generic full-case default.
-        intent = _conversation_context["pending_intent"]
 
-    if intent in _NEEDS_AMOUNT and amount is None:
-        _conversation_context["pending_intent"] = intent
-        return {
-            "intent": "clarify",
-            "extracted": {
-                "amount": None,
-                "filing_status": filing_status,
-                "state": state,
-                "self_employed": self_employed,
-                "business_owner": business_owner,
-            },
-            "reply": (
-                "I don't have an income figure for this yet — what's your approximate "
-                'income (e.g. "150k" or "$85,000")?'
-            ),
-            "result": {},
-        }
-
-    # Remember what this turn established, so a follow-up question can omit it.
-    _conversation_context["amount"] = amount
-    _conversation_context["filing_status"] = filing_status
-    _conversation_context["state"] = state
-    _conversation_context["pending_intent"] = None
-
+def _compute_intent(
+    intent: str,
+    message: str,
+    amount: float,
+    filing_status: str,
+    state: str,
+    self_employed: bool,
+    business_owner: bool,
+) -> tuple[dict, str]:
+    """Run one known intent's engine and build its reply. Factored out of
+    chat() so a compound question ("should I itemize and am I at audit
+    risk") can call this twice and combine the results, instead of the
+    router only ever being able to answer one topic per message."""
     if intent == "tax_calculate":
         result = tax_calculate(
             {
@@ -878,7 +981,7 @@ def chat(payload: dict) -> dict:
             if top
             else "No specific optimization strategies applied for this scenario."
         )
-    elif intent_matched:
+    else:
         # A genuine "give me everything" request (matched the platform_analyze
         # keywords, e.g. "full analysis") — this is the one case worth
         # actually running all three engines for.
@@ -901,19 +1004,140 @@ def chat(payload: dict) -> dict:
             f"legal risk score {result['legal']['risk_score']:.2f}, "
             f"recommendation: {result['algorithms']['primary_recommendation']}."
         )
-    else:
-        # Nothing in the message matched any topic keyword — say so plainly
-        # instead of quietly running a full-case computation the user never
-        # asked for and presenting it as if it answered their question.
-        result = {}
+    return result, reply
+
+
+def chat(payload: dict) -> dict:
+    """Route a free-text message to the right engine(s) and reply in one place.
+
+    This is plain keyword/regex matching, not a language model — it stays
+    within "no paid API, GitHub Pages only." It reuses the exact same
+    handlers as every other tab, just chosen from the message text instead
+    of a form. A compound question naming two distinct topics gets both
+    answered in one reply (see _classify_intents); otherwise it's one topic
+    per message just like before.
+    """
+    message = payload.get("message", "")
+
+    fact_answer = _match_fact(message)
+    if fact_answer is not None:
+        # A factual lookup ("what's the SALT cap") doesn't depend on the
+        # user's own numbers and shouldn't disturb whatever topic/amount is
+        # already remembered, so it's answered immediately, standalone.
+        return {
+            "intent": "fact",
+            "extracted": {"amount": None, "filing_status": None, "state": None},
+            "reply": fact_answer,
+            "result": {},
+        }
+
+    extracted_amount = _extract_amount(message)
+    amount = extracted_amount if extracted_amount is not None else _conversation_context["amount"]
+
+    filing_status = (
+        _extract_filing_status(message)
+        if _mentions_filing_status(message)
+        else (_conversation_context["filing_status"] or "single")
+    )
+    state = (
+        _extract_state(message)
+        if _mentions_state(message)
+        else (_conversation_context["state"] or "CA")
+    )
+    self_employed = _has_any(
+        message, "self employ", "self-employ", "1099", "schedule c", "freelance"
+    )
+    business_owner = _has_any(
+        message, "business owner", "own a business", "my business", "llc", "s-corp"
+    )
+
+    intents = _classify_intents(message)
+    intent_matched = bool(intents)
+    if not intent_matched and _conversation_context["pending_intent"]:
+        # This message is just an answer ("150k, self-employed") to the
+        # question chat() asked last turn, not a fresh, unrelated topic —
+        # resume what was actually being asked about instead of falling
+        # back to the generic full-case default.
+        intents = [_conversation_context["pending_intent"]]
+
+    # An unmatched message still defaults to platform_analyze for the
+    # purposes of the amount-needed check below, exactly like a single
+    # unmatched intent always has — that's what makes "hello there" (no
+    # topic, no amount) prompt for income instead of skipping straight to
+    # "I'm not sure what you're asking."
+    gate_intents = intents or ["platform_analyze"]
+
+    if any(i in _NEEDS_AMOUNT for i in gate_intents) and amount is None:
+        _conversation_context["pending_intent"] = gate_intents[0]
+        return {
+            "intent": "clarify",
+            "extracted": {
+                "amount": None,
+                "filing_status": filing_status,
+                "state": state,
+                "self_employed": self_employed,
+                "business_owner": business_owner,
+            },
+            "reply": (
+                "I don't have an income figure for this yet — what's your approximate "
+                'income (e.g. "150k" or "$85,000")?'
+            ),
+            "result": {},
+        }
+
+    # Remember what this turn established, so a follow-up question can omit
+    # it — even when nothing matched, as long as an amount was mentioned.
+    _conversation_context["amount"] = amount
+    _conversation_context["filing_status"] = filing_status
+    _conversation_context["state"] = state
+    _conversation_context["pending_intent"] = None
+
+    if not intents:
+        # Nothing in the message matched any topic keyword, and an amount
+        # was mentioned (else the clarify branch above would have caught
+        # it) — say so plainly instead of quietly running a full-case
+        # computation the user never asked for.
+        intent = "platform_analyze"
+        result: dict = {}
         reply = (
             "I'm not sure what you're asking. Try a question about tax, "
             "deductions, AMT, quarterly estimates, a contract or document, "
             "compliance (FBAR/FATCA), filing status, audit risk, tax-saving "
             "strategies, or a specific tax-law fact."
         )
+        _record_session_entry(intent, amount, self_employed, business_owner, state, result)
+        return {
+            "intent": intent,
+            "matched": intent_matched,
+            "extracted": {
+                "amount": amount,
+                "filing_status": filing_status,
+                "state": state,
+                "self_employed": self_employed,
+                "business_owner": business_owner,
+            },
+            "reply": reply,
+            "result": result,
+        }
 
-    _record_session_entry(intent, amount, self_employed, result)
+    computed = [
+        (
+            i,
+            *_compute_intent(
+                i, message, amount, filing_status, state, self_employed, business_owner
+            ),
+        )
+        for i in intents
+    ]
+    for i, result, _ in computed:
+        _record_session_entry(i, amount, self_employed, business_owner, state, result)
+
+    if len(computed) == 1:
+        intent, result, reply = computed[0]
+    else:
+        intent = "+".join(i for i, _, _ in computed)
+        result = {i: r for i, r, _ in computed}
+        reply = " ".join(r for _, _, r in computed)
 
     return {
         "intent": intent,
@@ -968,10 +1192,25 @@ def chat_import_state(payload: dict) -> dict:
 _session_history: list = []
 
 
-def _record_session_entry(intent: str, amount: float | None, self_employed: bool, result: dict):
-    entry = {"intent": intent, "amount": amount, "self_employed": self_employed}
+def _record_session_entry(
+    intent: str,
+    amount: float | None,
+    self_employed: bool,
+    business_owner: bool,
+    state: str | None,
+    result: dict,
+):
+    entry = {
+        "intent": intent,
+        "amount": amount,
+        "self_employed": self_employed,
+        "business_owner": business_owner,
+        "state": state,
+    }
     if intent == "deduction_optimize" and isinstance(result, dict):
         entry["recommended_deduction"] = result.get("recommended_deduction")
+    if intent == "quarterly_estimate" and isinstance(result, dict):
+        entry["remaining_to_pay"] = result.get("remaining_to_pay")
     _session_history.append(entry)
 
 
@@ -1016,6 +1255,32 @@ def session_insights(payload: dict) -> dict:
         insights.append(
             "You mentioned self-employment income but haven't asked about deductions or "
             "audit risk yet — self-employed filers often have the most to gain from both."
+        )
+
+    for entry in _session_history:
+        remaining = entry.get("remaining_to_pay")
+        if entry["intent"] == "quarterly_estimate" and remaining and remaining > 0:
+            insights.append(
+                f"Your quarterly estimate showed ${remaining:,.0f} still owed against the "
+                "safe harbor — paying that down before the next due date avoids an "
+                "underpayment penalty."
+            )
+            break
+
+    states = {e["state"] for e in _session_history if e.get("state")}
+    if len(states) >= 2:
+        insights.append(
+            f"You mentioned more than one state this session ({', '.join(sorted(states))}) — "
+            "results reflect whichever was most recent; multi-state income has its own filing "
+            "rules this doesn't account for."
+        )
+
+    mentioned_business_owner = any(e["business_owner"] for e in _session_history)
+    checked_compliance = any(e["intent"] == "compliance_check" for e in _session_history)
+    if mentioned_business_owner and not checked_compliance:
+        insights.append(
+            "You mentioned owning a business but haven't run a compliance check yet — "
+            "worth checking 1099 filing requirements and estimated-payment adequacy."
         )
 
     return {"insights": insights, "entries_analyzed": len(_session_history)}
