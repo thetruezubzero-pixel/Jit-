@@ -1513,6 +1513,7 @@ def _record_session_entry(
     }
     if intent == "deduction_optimize" and isinstance(result, dict):
         entry["recommended_deduction"] = result.get("recommended_deduction")
+        entry["recommended_method"] = result.get("recommended_method")
     if intent == "quarterly_estimate" and isinstance(result, dict):
         entry["remaining_to_pay"] = result.get("remaining_to_pay")
     _session_history.append(entry)
@@ -1541,11 +1542,23 @@ def session_insights(payload: dict) -> dict:
 
     for entry in _session_history:
         deduction = entry.get("recommended_deduction")
-        if entry["intent"] == "deduction_optimize" and deduction and entry["amount"]:
+        # Only itemized deductions carry any audit-selection signal — the
+        # standard deduction is a fixed, automatic amount everyone qualifies
+        # for regardless of income, so a modest earner whose standard
+        # deduction is a large fraction of their AGI isn't a risk signal at
+        # all. Checking recommended_method here is the actual fix: this
+        # used to fire on the standard deduction too, falsely warning
+        # ordinary filers who'd never itemized anything.
+        if (
+            entry["intent"] == "deduction_optimize"
+            and entry.get("recommended_method") == "itemized"
+            and deduction
+            and entry["amount"]
+        ):
             ratio = deduction / entry["amount"]
             if ratio > 0.35:
                 insights.append(
-                    f"Deductions came out to {ratio:.0%} of AGI in one calculation — "
+                    f"Itemized deductions came out to {ratio:.0%} of AGI in one calculation — "
                     "that's a ratio the IRS's own audit-selection models flag more often; "
                     "make sure everything claimed is well documented."
                 )

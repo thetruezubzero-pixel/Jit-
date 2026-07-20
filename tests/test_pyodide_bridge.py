@@ -695,14 +695,29 @@ class TestSessionInsights:
         assert "varied a lot" in insights
         assert "$100,000" in insights and "$500,000" in insights
 
-    def test_high_deduction_ratio_is_flagged(self):
-        # chat()'s deduction_optimize path itemizes 11% of AGI by default, so
-        # at a low enough income the flat $14,600 standard deduction (2024,
-        # single) ends up recommended instead — and dominates a small AGI.
+    def test_standard_deduction_never_triggers_the_audit_ratio_warning(self):
+        # Regression: this insight used to compare recommended_deduction to
+        # AGI regardless of which method was recommended — so a low-income
+        # filer whose flat, automatic standard deduction ($14,600 in 2024)
+        # is a large fraction of a small AGI got a false "this looks
+        # audit-risky" warning for taking the deduction everyone qualifies
+        # for. The standard deduction carries no audit-selection signal at
+        # all; only a real itemized total would.
         _run("chat", {"message": "what deductions should I take on 30k income"})
         response = _run("session_insights", {})
         insights = " ".join(response["data"]["insights"])
-        assert "audit-selection models" in insights
+        assert "audit-selection models" not in insights
+
+    def test_itemized_deduction_within_normal_range_does_not_falsely_warn(self):
+        # chat()'s deduction_optimize path itemizes a fixed 11% of AGI
+        # (mortgage interest + charitable giving placeholders) — well under
+        # the 35% threshold — so even when itemizing is recommended, this
+        # shouldn't fire from chat() alone without a real, larger itemized
+        # total.
+        _run("chat", {"message": "what deductions should I take on 200k income"})
+        response = _run("session_insights", {})
+        insights = " ".join(response["data"]["insights"])
+        assert "audit-selection models" not in insights
 
     def test_self_employed_without_deduction_or_risk_check_is_flagged(self):
         _run("chat", {"message": "what's my tax if I'm self employed making 150k"})
