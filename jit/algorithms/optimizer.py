@@ -49,17 +49,17 @@ class OptimizationResult:
 # 2024 Contribution limits
 LIMITS = {
     "401k_employee": 23_000,
-    "401k_catchup": 7_500,       # Age 50+
+    "401k_catchup": 7_500,  # Age 50+
     "ira_traditional": 7_000,
     "ira_catchup": 1_000,
-    "sep_ira_rate": 0.25,         # 25% of net SE income
+    "sep_ira_rate": 0.25,  # 25% of net SE income
     "sep_ira_max": 69_000,
     "hsa_self": 4_150,
     "hsa_family": 8_300,
-    "hsa_catchup": 1_000,         # Age 55+
+    "hsa_catchup": 1_000,  # Age 55+
     "fsa_health": 3_200,
     "dependent_care_fsa": 5_000,
-    "solo_401k_total": 69_000,    # Employee + employer contributions
+    "solo_401k_total": 69_000,  # Employee + employer contributions
 }
 
 # Qualified Opportunity Zone deferral period (example parameters)
@@ -130,35 +130,74 @@ class TaxOptimizer:
         warnings: List[str] = []
 
         # Run each optimization sub-analysis recursively
-        strategies.extend(self._optimize_retirement(
-            gross_income, marginal_rate, age,
-            has_401k_access, current_401k_contribution,
-            self_employment_income, current_sep_contribution,
-        ))
+        strategies.extend(
+            self._optimize_retirement(
+                gross_income,
+                marginal_rate,
+                age,
+                has_401k_access,
+                current_401k_contribution,
+                self_employment_income,
+                current_sep_contribution,
+            )
+        )
 
-        strategies.extend(self._optimize_hsa(
-            marginal_rate, age, has_hsa_eligible_plan,
-            current_hsa_contribution, has_hsa_family_coverage,
-        ))
+        strategies.extend(
+            self._optimize_hsa(
+                marginal_rate,
+                age,
+                has_hsa_eligible_plan,
+                current_hsa_contribution,
+                has_hsa_family_coverage,
+            )
+        )
 
-        strategies.extend(self._optimize_capital_gains(
-            has_capital_losses, unrealized_capital_gains,
-            marginal_rate, gross_income, filing_status,
-        ))
+        strategies.extend(
+            self._optimize_capital_gains(
+                has_capital_losses,
+                unrealized_capital_gains,
+                marginal_rate,
+                gross_income,
+                filing_status,
+            )
+        )
 
-        strategies.extend(self._optimize_charitable(
-            charitable_intent, marginal_rate, gross_income, filing_status,
-        ))
+        strategies.extend(
+            self._optimize_charitable(
+                charitable_intent,
+                marginal_rate,
+                gross_income,
+                filing_status,
+            )
+        )
 
         if qualified_business_income > 0:
-            strategies.extend(self._optimize_qbi(
-                qualified_business_income, gross_income, filing_status,
-            ))
+            strategies.extend(
+                self._optimize_qbi(
+                    qualified_business_income,
+                    gross_income,
+                    filing_status,
+                )
+            )
 
         if is_business_owner:
-            strategies.extend(self._optimize_business_structure(
-                gross_income, self_employment_income, marginal_rate,
-            ))
+            strategies.extend(
+                self._optimize_business_structure(
+                    gross_income,
+                    self_employment_income,
+                    marginal_rate,
+                )
+            )
+
+        strategies.extend(self._optimize_backdoor_roth(gross_income, filing_status))
+
+        strategies.extend(
+            self._optimize_salt_cap_workaround(
+                is_business_owner,
+                expected_state_tax,
+                marginal_rate,
+            )
+        )
 
         # Sort by estimated savings descending
         strategies.sort(key=lambda s: s.estimated_savings, reverse=True)
@@ -438,3 +477,98 @@ class TaxOptimizer:
             )
 
         return strategies
+
+    def _optimize_backdoor_roth(
+        self,
+        gross_income: float,
+        filing_status: str,
+    ) -> List[OptimizationStrategy]:
+        """Flag the backdoor Roth IRA for taxpayers phased out of direct contributions.
+
+        2024 Roth IRA direct-contribution MAGI phase-out ranges (IRS Notice
+        2023-75). Above the top of the range, a direct Roth contribution is
+        disallowed, but a taxpayer can still contribute to a nondeductible
+        Traditional IRA and convert it — the "backdoor Roth". This produces
+        no current-year deduction (the contribution isn't deductible either
+        way), so the benefit is tax-free future growth, not an immediate
+        savings figure; estimated_savings is intentionally 0.0.
+        """
+        phaseout_end = {
+            "single": 161_000,
+            "head_of_household": 161_000,
+            "married_filing_jointly": 240_000,
+            "qualifying_surviving_spouse": 240_000,
+            "married_filing_separately": 10_000,
+        }.get(filing_status.lower(), 161_000)
+
+        if gross_income <= phaseout_end:
+            return []
+
+        return [
+            OptimizationStrategy(
+                strategy_id="backdoor_roth",
+                title="Backdoor Roth IRA Conversion",
+                description=(
+                    f"At ${gross_income:,.0f} of income you're above the Roth IRA "
+                    "direct-contribution phase-out, but you can still contribute to a "
+                    "nondeductible Traditional IRA and convert it to Roth. No current-year "
+                    "deduction either way — the benefit is tax-free future growth and "
+                    "tax-free qualified withdrawals, not an immediate savings figure."
+                ),
+                estimated_savings=0.0,
+                implementation_complexity="medium",
+                prerequisites=[
+                    "File Form 8606 for the nondeductible contribution and the conversion",
+                ],
+                risks=[
+                    "Pro-rata rule (IRC § 408(d)(2)): if you hold other pre-tax Traditional/"
+                    "SEP/SIMPLE IRA balances, part of the conversion becomes taxable — this "
+                    "strategy is clean only with no other pre-tax IRA balances",
+                ],
+                citations=["IRC § 408A", "IRC § 408(d)(2)", "IRS Notice 2023-75"],
+            )
+        ]
+
+    def _optimize_salt_cap_workaround(
+        self,
+        is_business_owner: bool,
+        expected_state_tax: float,
+        marginal_rate: float,
+    ) -> List[OptimizationStrategy]:
+        """Flag the pass-through entity tax (PTET) SALT cap workaround.
+
+        TCJA capped the itemized SALT deduction at $10,000 (IRC § 164(b)(6)).
+        Most states now let a pass-through business (S-corp/partnership) elect
+        to pay state income tax at the entity level; the IRS blessed this in
+        Notice 2020-75 as a fully deductible business expense, uncapped,
+        while the owner gets an offsetting state credit or exclusion. Not
+        every state has a PTET regime, so this needs a state-specific check
+        before acting on it.
+        """
+        if not is_business_owner or expected_state_tax <= 0:
+            return []
+
+        savings = expected_state_tax * marginal_rate
+        return [
+            OptimizationStrategy(
+                strategy_id="salt_cap_ptet",
+                title="Pass-Through Entity Tax (PTET) SALT Cap Workaround",
+                description=(
+                    f"As a pass-through business owner paying an estimated "
+                    f"${expected_state_tax:,.0f} in state income tax, electing PTET (where "
+                    "your state offers it) lets the entity deduct that state tax in full "
+                    "as a federal business expense, bypassing the $10,000 SALT cap. "
+                    f"Estimated federal savings: ${savings:,.0f}."
+                ),
+                estimated_savings=round(savings, 2),
+                implementation_complexity="high",
+                prerequisites=[
+                    "Confirm your state has enacted a PTET election",
+                    "Make the election by your state's specific annual deadline",
+                ],
+                risks=[
+                    "Consult a CPA — availability, deadlines, and mechanics vary by state",
+                ],
+                citations=["IRC § 164(b)(6)", "IRS Notice 2020-75"],
+            )
+        ]

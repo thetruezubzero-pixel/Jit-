@@ -7,78 +7,92 @@ from jit.algorithms.decision_tree import DecisionTree, DecisionNode, NodeType, N
 from jit.algorithms.optimizer import TaxOptimizer
 from jit.algorithms.risk_assessor import RiskAssessor
 
-
 # -----------------------------------------------------------------------
 # DecisionTree tests
 # -----------------------------------------------------------------------
+
 
 class TestDecisionTree:
     def test_filing_status_single(self):
         """Unmarried, no qualifying dependent → Single."""
         tree = DecisionTree.build_filing_status_tree()
-        result = tree.evaluate({
-            "is_married": False,
-            "prefer_filing_separately": False,
-            "is_qualifying_surviving_spouse": False,
-            "has_qualifying_dependent": False,
-        })
+        result = tree.evaluate(
+            {
+                "is_married": False,
+                "prefer_filing_separately": False,
+                "is_qualifying_surviving_spouse": False,
+                "has_qualifying_dependent": False,
+            }
+        )
         assert "SINGLE" in result.recommendation.upper()
 
     def test_filing_status_mfj(self):
         """Married, no preference for separate → MFJ."""
         tree = DecisionTree.build_filing_status_tree()
-        result = tree.evaluate({
-            "is_married": True,
-            "prefer_filing_separately": False,
-        })
+        result = tree.evaluate(
+            {
+                "is_married": True,
+                "prefer_filing_separately": False,
+            }
+        )
         assert "MARRIED FILING JOINTLY" in result.recommendation.upper()
 
     def test_filing_status_mfs(self):
         """Married, prefer filing separately → MFS."""
         tree = DecisionTree.build_filing_status_tree()
-        result = tree.evaluate({
-            "is_married": True,
-            "prefer_filing_separately": True,
-        })
+        result = tree.evaluate(
+            {
+                "is_married": True,
+                "prefer_filing_separately": True,
+            }
+        )
         assert "SEPARATELY" in result.recommendation.upper()
 
     def test_filing_status_hoh(self):
         """Unmarried with qualifying dependent → HOH."""
         tree = DecisionTree.build_filing_status_tree()
-        result = tree.evaluate({
-            "is_married": False,
-            "prefer_filing_separately": False,
-            "is_qualifying_surviving_spouse": False,
-            "has_qualifying_dependent": True,
-        })
+        result = tree.evaluate(
+            {
+                "is_married": False,
+                "prefer_filing_separately": False,
+                "is_qualifying_surviving_spouse": False,
+                "has_qualifying_dependent": True,
+            }
+        )
         assert "HEAD OF HOUSEHOLD" in result.recommendation.upper()
 
     def test_filing_status_qss(self):
         """Qualifying surviving spouse status."""
         tree = DecisionTree.build_filing_status_tree()
-        result = tree.evaluate({
-            "is_married": False,
-            "is_qualifying_surviving_spouse": True,
-            "has_qualifying_dependent": False,
-        })
+        result = tree.evaluate(
+            {
+                "is_married": False,
+                "is_qualifying_surviving_spouse": True,
+                "has_qualifying_dependent": False,
+            }
+        )
         assert "SURVIVING SPOUSE" in result.recommendation.upper()
 
     def test_deduction_method_itemized(self):
         """Itemized deductions > standard should recommend itemizing."""
         tree = DecisionTree.build_deduction_method_tree()
-        result = tree.evaluate({
-            "itemized_deductions": 25_000,
-            "standard_deduction": 14_600,
-        })
+        result = tree.evaluate(
+            {
+                "itemized_deductions": 25_000,
+                "standard_deduction": 14_600,
+            }
+        )
         assert "ITEMIZE" in result.recommendation.upper()
 
     def test_deduction_method_standard(self):
         """Itemized deductions < standard should recommend standard."""
         tree = DecisionTree.build_deduction_method_tree()
-        result = tree.evaluate({
-            "itemized_deductions": 5_000,
-            "standard_deduction": 14_600,
-        })
+        result = tree.evaluate(
+            {
+                "itemized_deductions": 5_000,
+                "standard_deduction": 14_600,
+            }
+        )
         assert "STANDARD" in result.recommendation.upper()
 
     def test_confidence_between_0_and_1(self):
@@ -86,8 +100,11 @@ class TestDecisionTree:
         tree = DecisionTree.build_filing_status_tree()
         for scenario in [
             {"is_married": True, "prefer_filing_separately": False},
-            {"is_married": False, "has_qualifying_dependent": True,
-             "is_qualifying_surviving_spouse": False},
+            {
+                "is_married": False,
+                "has_qualifying_dependent": True,
+                "is_qualifying_surviving_spouse": False,
+            },
         ]:
             result = tree.evaluate(scenario)
             assert 0.0 <= result.confidence <= 1.0
@@ -95,8 +112,13 @@ class TestDecisionTree:
     def test_path_non_empty(self):
         """Path taken should include at least one node."""
         tree = DecisionTree.build_filing_status_tree()
-        result = tree.evaluate({"is_married": False, "has_qualifying_dependent": False,
-                                "is_qualifying_surviving_spouse": False})
+        result = tree.evaluate(
+            {
+                "is_married": False,
+                "has_qualifying_dependent": False,
+                "is_qualifying_surviving_spouse": False,
+            }
+        )
         assert len(result.path_taken) > 0
 
     def test_no_root_raises(self):
@@ -108,11 +130,15 @@ class TestDecisionTree:
     def test_max_depth_respected(self):
         """Recursion depth limit should prevent infinite loops."""
         # Build a deeply nested chain (depth > max_depth)
-        leaf = DecisionNode("leaf", NodeType.RECOMMENDATION, "Leaf", recommendation="Done", max_depth=5)
+        leaf = DecisionNode(
+            "leaf", NodeType.RECOMMENDATION, "Leaf", recommendation="Done", max_depth=5
+        )
         node = leaf
         for i in range(10):
             node = DecisionNode(
-                f"cond_{i}", NodeType.CONDITION, f"Condition {i}",
+                f"cond_{i}",
+                NodeType.CONDITION,
+                f"Condition {i}",
                 condition=lambda ctx: True,
                 yes_child=node,
                 max_depth=5,
@@ -125,7 +151,9 @@ class TestDecisionTree:
     def test_custom_calculation_node(self):
         """Calculation node should compute and store values."""
         calc_node = DecisionNode(
-            "compute_tax", NodeType.CALCULATION, "Compute Estimated Tax",
+            "compute_tax",
+            NodeType.CALCULATION,
+            "Compute Estimated Tax",
             calculation=lambda ctx: ctx.get("income", 0) * 0.25,
             result_key="estimated_tax",
         )
@@ -137,6 +165,7 @@ class TestDecisionTree:
 # -----------------------------------------------------------------------
 # TaxOptimizer tests
 # -----------------------------------------------------------------------
+
 
 class TestTaxOptimizer:
     def test_basic_optimization(self):
@@ -206,6 +235,61 @@ class TestTaxOptimizer:
         ids = [s.strategy_id for s in result.strategies]
         assert "scorp_election" in ids
 
+    def test_backdoor_roth_strategy_above_phaseout(self):
+        """Backdoor Roth should appear once income exceeds the direct-contribution phase-out."""
+        optimizer = TaxOptimizer()
+        result = optimizer.optimize(
+            gross_income=200_000,
+            current_tax=45_000,
+            marginal_rate=0.32,
+            filing_status="single",
+        )
+        ids = [s.strategy_id for s in result.strategies]
+        assert "backdoor_roth" in ids
+        strategy = next(s for s in result.strategies if s.strategy_id == "backdoor_roth")
+        # No current-year deduction either way — the benefit is future tax-free growth.
+        assert strategy.estimated_savings == 0.0
+
+    def test_no_backdoor_roth_below_phaseout(self):
+        """Backdoor Roth should not appear for a filer still eligible to contribute directly."""
+        optimizer = TaxOptimizer()
+        result = optimizer.optimize(
+            gross_income=80_000,
+            current_tax=12_000,
+            marginal_rate=0.22,
+            filing_status="single",
+        )
+        ids = [s.strategy_id for s in result.strategies]
+        assert "backdoor_roth" not in ids
+
+    def test_salt_cap_workaround_for_business_owner(self):
+        """PTET SALT cap workaround should appear for a business owner with state tax."""
+        optimizer = TaxOptimizer()
+        result = optimizer.optimize(
+            gross_income=300_000,
+            current_tax=70_000,
+            marginal_rate=0.35,
+            is_business_owner=True,
+            expected_state_tax=20_000,
+        )
+        ids = [s.strategy_id for s in result.strategies]
+        assert "salt_cap_ptet" in ids
+        strategy = next(s for s in result.strategies if s.strategy_id == "salt_cap_ptet")
+        assert strategy.estimated_savings == pytest.approx(20_000 * 0.35)
+
+    def test_no_salt_cap_workaround_without_business(self):
+        """PTET workaround should not appear for a non-business-owner."""
+        optimizer = TaxOptimizer()
+        result = optimizer.optimize(
+            gross_income=300_000,
+            current_tax=70_000,
+            marginal_rate=0.35,
+            is_business_owner=False,
+            expected_state_tax=20_000,
+        )
+        ids = [s.strategy_id for s in result.strategies]
+        assert "salt_cap_ptet" not in ids
+
     def test_optimized_tax_less_than_current(self):
         """Optimized tax should be less than or equal to current tax."""
         optimizer = TaxOptimizer()
@@ -231,12 +315,16 @@ class TestTaxOptimizer:
         )
         if len(result.strategies) > 1:
             for i in range(len(result.strategies) - 1):
-                assert result.strategies[i].estimated_savings >= result.strategies[i + 1].estimated_savings
+                assert (
+                    result.strategies[i].estimated_savings
+                    >= result.strategies[i + 1].estimated_savings
+                )
 
 
 # -----------------------------------------------------------------------
 # RiskAssessor tests
 # -----------------------------------------------------------------------
+
 
 class TestRiskAssessor:
     def test_low_risk_clean_return(self):
@@ -258,22 +346,18 @@ class TestRiskAssessor:
     def test_unreported_income_critical(self):
         """Unreported income should push penalty risk very high."""
         assessor = RiskAssessor()
-        profile = assessor.assess_individual_tax(
-            agi=100_000, has_unreported_income=True
-        )
-        penalty_factors = [f for f in profile.factors
-                           if f.factor_id == "unreported_income" and f.is_present]
+        profile = assessor.assess_individual_tax(agi=100_000, has_unreported_income=True)
+        penalty_factors = [
+            f for f in profile.factors if f.factor_id == "unreported_income" and f.is_present
+        ]
         assert len(penalty_factors) == 1
         assert penalty_factors[0].risk_contribution == 1.0
 
     def test_foreign_income_compliance_risk(self):
         """Foreign income should add compliance risk factor."""
         assessor = RiskAssessor()
-        profile = assessor.assess_individual_tax(
-            agi=200_000, has_foreign_income=True
-        )
-        foreign_factors = [f for f in profile.present_factors
-                           if f.factor_id == "foreign_income"]
+        profile = assessor.assess_individual_tax(agi=200_000, has_foreign_income=True)
+        foreign_factors = [f for f in profile.present_factors if f.factor_id == "foreign_income"]
         assert len(foreign_factors) > 0
 
     def test_high_agi_higher_base_audit_rate(self):
