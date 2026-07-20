@@ -117,7 +117,7 @@ input, select, textarea {
 textarea { resize: vertical; }
 
 button { cursor: pointer; border: none; border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.9rem; font-weight: 600; font-family: inherit; }
-button.run { background: var(--accent); color: var(--accent-text); width: 100%; padding: 0.8rem; font-size: 1rem; margin-top: 0.5rem; }
+button.run { background: var(--accent); color: var(--accent-text); padding: 0.8rem 1.3rem; font-size: 1rem; }
 button.run:disabled { opacity: 0.6; }
 
 .error-box {
