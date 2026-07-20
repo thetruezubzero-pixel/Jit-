@@ -261,7 +261,10 @@ def _extract_amount(text: str) -> float | None:
 
     best_value = None
     best_score = -1
-    for match in re.finditer(r"\$?\s*(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?", text):
+    # The suffix must be glued directly to the digits with no letter right
+    # after it — otherwise "18000 mortgage interest" reads its leading "m"
+    # as a million-suffix on 18000, turning $18,000 into $18,000,000,000.
+    for match in re.finditer(r"\$?\s*(\d[\d,]*(?:\.\d+)?)([kKmM])?(?![a-zA-Z])", text):
         raw, suffix = match.group(1), (match.group(2) or "").lower()
         number = float(raw.replace(",", ""))
         if suffix == "k":
@@ -834,6 +837,9 @@ _INTENT_KEYWORDS = {
         "tax strategies",
         "reduce my tax",
         "optimize",
+        "optimization",
+        "tax-saving",
+        "tax saving",
     ),
     "tax_calculate": ("tax", "calculate", "how much tax", "owe"),
     "platform_analyze": ("full analysis", "everything", "complete case", "full case", "overall"),
@@ -847,7 +853,7 @@ _INTENT_KEYWORDS = {
 _WEAK_KEYWORDS = {
     "tax_calculate": {"tax"},
     "deduction_optimize": {"deduction"},
-    "algorithm_optimize": {"optimize"},
+    "algorithm_optimize": {"optimize", "optimization", "tax-saving", "tax saving"},
 }
 
 _COMPOUND_CUES = (" and ", " also ", " as well", " plus ", "&")

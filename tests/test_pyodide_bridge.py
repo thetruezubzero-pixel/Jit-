@@ -204,6 +204,16 @@ class TestAmountExtraction:
         # actual amount ("200k") must win.
         assert bridge._extract_amount("1099 income of 200k") == 200_000.0
 
+    def test_suffix_does_not_bleed_into_next_word(self):
+        # Regression: the k/m suffix match used to allow arbitrary
+        # whitespace before it, so "18000 mortgage interest" read the
+        # leading "m" of "mortgage" as a million-suffix on 18000 — turning
+        # $18,000 into $18,000,000,000. The suffix must be glued directly
+        # to the digits, not separated by a space into the next word.
+        assert bridge._extract_amount("itemized 18000 mortgage interest") == 18_000.0
+        assert bridge._extract_amount("40000 medical expenses") == 40_000.0
+        assert bridge._extract_amount("5000 miles driven for work") == 5_000.0
+
 
 class TestChat:
     @pytest.fixture(autouse=True)
@@ -254,6 +264,17 @@ class TestChat:
         )
         assert response["success"] is True
         assert response["data"]["intent"] == "filing_status_tree"
+
+    def test_optimization_wording_routes_to_optimizer(self):
+        # Regression: "optimize" was a recognized keyword but "optimization"
+        # (the more natural noun form, and literally this feature's label
+        # in the UI) was not, so a very ordinary phrasing of the same
+        # request fell through to the "not sure what you're asking" reply.
+        response = _run(
+            "chat",
+            {"message": "what optimization strategies can save me money on 220k income"},
+        )
+        assert response["data"]["intent"] == "algorithm_optimize"
 
     def test_business_owner_routes_to_optimizer_with_state_tax(self):
         response = _run(
