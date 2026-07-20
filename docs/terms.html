@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Jit — Terms of Service</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%E2%9A%96%EF%B8%8F</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Jit</h1>
+    <p class="subtitle">Terms of Service</p>
+  </header>
+
+  <main>
+    <section class="panel legal-page">
+      <div class="draft-notice">
+        <strong>Draft.</strong> This page is a starting template, not
+        reviewed by an attorney. Have a qualified attorney review and adapt
+        it — including for your specific state and business structure —
+        before relying on it commercially.
+      </div>
+
+      <p class="legal-updated">Last updated: <span id="terms-date"></span></p>
+
+      <h2>1. What Jit is</h2>
+      <p>
+        Jit is an educational software tool for exploring illustrative
+        federal tax and legal-document scenarios. It runs entirely in your
+        browser (via Pyodide/WebAssembly) — there is no server processing
+        or storing your data. Jit is <strong>not</strong> a tax preparation
+        service, not a law firm, not a CPA firm, and does not provide
+        legal, tax, financial, or accounting advice. No professional
+        relationship (attorney-client, CPA-client, or otherwise) is formed
+        by using Jit, whether on the free tier or with a paid Jit Pro
+        unlock.
+      </p>
+
+      <h2>2. No advice, no reliance</h2>
+      <p>
+        All calculations, recommendations, and "facts" in Jit are
+        illustrative and based on general, simplified rules — they may be
+        incomplete, outdated, or inapplicable to your specific
+        circumstances. Do not rely on Jit's output to prepare a return,
+        make a filing decision, or take any legal or financial action.
+        Consult a qualified CPA, enrolled agent, or attorney licensed in
+        your jurisdiction before acting on anything related to your taxes
+        or legal matters.
+      </p>
+
+      <h2>3. Jit Pro (paid features)</h2>
+      <p>
+        Jit Pro is an optional one-time unlock, purchased through a
+        third-party payment processor (currently Gumroad), that enables
+        additional convenience features (e.g., PDF export) on top of the
+        free tier. Purchasing Jit Pro does not change Section 2 above in
+        any way — Pro features are conveniences, not advice, and are
+        provided "as is." License verification happens by calling the
+        payment processor's API directly from your browser; see the
+        Privacy Policy for what that involves.
+      </p>
+      <p>
+        Refunds, if offered, are handled according to the payment
+        processor's own policies at the time of purchase, not by Jit
+        directly.
+      </p>
+
+      <h2>4. No warranty</h2>
+      <p>
+        Jit is provided "as is" and "as available," without warranties of
+        any kind, express or implied, including without limitation
+        warranties of accuracy, merchantability, fitness for a particular
+        purpose, or non-infringement.
+      </p>
+
+      <h2>5. Limitation of liability</h2>
+      <p>
+        To the maximum extent permitted by law, Jit and its operator are
+        not liable for any indirect, incidental, special, consequential,
+        or punitive damages, or any loss of profits or revenues, arising
+        from your use of or inability to use Jit, whether based on
+        warranty, contract, tort, or any other legal theory.
+      </p>
+
+      <h2>6. Changes</h2>
+      <p>
+        These terms may be updated from time to time; continued use of Jit
+        after a change constitutes acceptance of the updated terms.
+      </p>
+
+      <h2>7. Contact</h2>
+      <p>
+        [Add a real contact method here — an email address or a link to a
+        contact page — before publishing this for real users.]
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p><a href="index.html">&larr; Back to Jit</a></p>
+  </footer>
+
+  <script>
+    document.getElementById("terms-date").textContent = new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  </script>
+</body>
+</html>

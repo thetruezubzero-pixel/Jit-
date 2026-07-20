@@ -65,6 +65,12 @@ one-shot form:
   way.
 - **Share** — sends the visible conversation out through your phone's
   normal share sheet (or copies/downloads it as a fallback).
+- **Jit Pro (optional, paid)** — everything above stays free. Pro is a
+  one-time unlock via a Gumroad license key (verified directly against
+  Gumroad's API from the browser, still no server of ours) for extras like
+  PDF export. See `docs/terms.html` / `docs/privacy.html` — both are
+  starting drafts that need a real attorney's review before commercial use,
+  not legal advice from this codebase.
 
 See `docs/py/bridge.py` for the routing/dispatch layer and
 `scripts/sync_pyodide_source.sh` for what gets synced.

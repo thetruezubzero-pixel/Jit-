@@ -404,6 +404,102 @@ if (chatShareBtn) {
 }
 
 // ---------------------------------------------------------------------
+// Jit Pro — an optional paid unlock (via a Gumroad license key) for
+// features beyond the free core, starting with PDF export. Still fully
+// static/serverless: Gumroad's public license-verification API is called
+// directly from the browser, so no backend of ours is involved in
+// checking a purchase.
+// ---------------------------------------------------------------------
+const PRO_UNLOCKED_STORAGE = "jit_pro_unlocked";
+const PRO_LICENSE_KEY_STORAGE = "jit_pro_license_key";
+
+// Set this to your own Gumroad product's permalink (the part of the URL
+// after gumroad.com/l/) once you've created a "Jit Pro" product there.
+const GUMROAD_PRODUCT_PERMALINK = "REPLACE_WITH_YOUR_GUMROAD_PERMALINK";
+const isProConfigured = () => GUMROAD_PRODUCT_PERMALINK !== "REPLACE_WITH_YOUR_GUMROAD_PERMALINK";
+
+const isProUnlocked = () => localStorage.getItem(PRO_UNLOCKED_STORAGE) === "1";
+
+async function verifyGumroadLicense(licenseKey) {
+  const response = await fetch("https://api.gumroad.com/v2/licenses/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      product_permalink: GUMROAD_PRODUCT_PERMALINK,
+      license_key: licenseKey,
+    }),
+  });
+  const data = await response.json();
+  return Boolean(data.success);
+}
+
+const proStatusEl = document.getElementById("pro-status");
+const proKeyInput = document.getElementById("pro-key-input");
+const proActivateBtn = document.getElementById("pro-activate");
+const proDeactivateBtn = document.getElementById("pro-deactivate");
+const exportPdfBtn = document.getElementById("chat-export-pdf");
+
+if (proKeyInput) {
+  proKeyInput.value = localStorage.getItem(PRO_LICENSE_KEY_STORAGE) || "";
+}
+
+function renderProStatus() {
+  if (exportPdfBtn) exportPdfBtn.disabled = !isProUnlocked();
+  if (!proStatusEl) return;
+  proStatusEl.textContent = isProUnlocked() ? "✓ Jit Pro is active on this device." : "";
+}
+
+if (proActivateBtn) {
+  proActivateBtn.addEventListener("click", async () => {
+    const key = (proKeyInput?.value || "").trim();
+    if (!key || !proStatusEl) return;
+
+    if (!isProConfigured()) {
+      proStatusEl.textContent = "Jit Pro isn't set up yet on this site — no product to verify against.";
+      return;
+    }
+
+    const original = proActivateBtn.textContent;
+    proActivateBtn.disabled = true;
+    proActivateBtn.textContent = "Checking…";
+    proStatusEl.textContent = "";
+    try {
+      const valid = await verifyGumroadLicense(key);
+      if (valid) {
+        localStorage.setItem(PRO_UNLOCKED_STORAGE, "1");
+        localStorage.setItem(PRO_LICENSE_KEY_STORAGE, key);
+      } else {
+        proStatusEl.textContent = "That license key didn't verify — double-check it and try again.";
+      }
+    } catch {
+      proStatusEl.textContent = "Couldn't reach the license server — check your connection and try again.";
+    } finally {
+      proActivateBtn.disabled = false;
+      proActivateBtn.textContent = original;
+      renderProStatus();
+    }
+  });
+}
+
+if (proDeactivateBtn) {
+  proDeactivateBtn.addEventListener("click", () => {
+    localStorage.removeItem(PRO_UNLOCKED_STORAGE);
+    localStorage.removeItem(PRO_LICENSE_KEY_STORAGE);
+    if (proKeyInput) proKeyInput.value = "";
+    renderProStatus();
+  });
+}
+
+if (exportPdfBtn) {
+  exportPdfBtn.addEventListener("click", () => {
+    if (!isProUnlocked()) return;
+    window.print();
+  });
+}
+
+renderProStatus();
+
+// ---------------------------------------------------------------------
 // Chat: one free-text box routed to whichever engine(s) it matches
 // ---------------------------------------------------------------------
 const chatForm = document.getElementById("chat-form");

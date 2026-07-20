@@ -34,6 +34,7 @@
       <div class="panel-head">
         <h2>Ask Jit</h2>
         <div class="panel-actions">
+          <button type="button" id="chat-export-pdf" class="link-btn" disabled title="Jit Pro feature — see settings below">Export PDF</button>
           <button type="button" id="chat-share" class="link-btn">Share</button>
           <button type="button" id="chat-reset" class="link-btn">Clear conversation</button>
         </div>
@@ -90,12 +91,36 @@
           <button type="button" id="gemini-key-clear" class="link-btn">Clear</button>
         </div>
       </details>
+
+      <details class="settings">
+        <summary>Jit Pro</summary>
+        <p class="hint">
+          Everything above is, and stays, free. Jit Pro is an optional
+          one-time unlock (via a license key from a Gumroad purchase) for
+          extras like PDF export of your results. Verified directly
+          against Gumroad's license API from this browser &mdash; still no
+          server of ours involved, and your license key is stored only on
+          this device.
+        </p>
+        <p id="pro-status" class="hint"></p>
+        <div class="key-row">
+          <input type="text" id="pro-key-input" placeholder="License key" autocomplete="off" />
+          <button type="button" id="pro-activate" class="link-btn">Activate</button>
+          <button type="button" id="pro-deactivate" class="link-btn">Deactivate</button>
+        </div>
+      </details>
     </section>
   </main>
 
   <footer>
     <p>Runs entirely in your browser via Pyodide (Python/WebAssembly) — no server, no data ever leaves this device.</p>
-    <p>Educational tool only — not legal or tax advice. Consult a qualified CPA or attorney.</p>
+    <p>
+      Educational tool only — not legal, tax, or financial advice, and using
+      it (free or Pro) does not create a professional relationship of any
+      kind. Consult a qualified CPA or attorney for advice on your actual
+      situation.
+    </p>
+    <p><a href="terms.html">Terms of Service</a> &middot; <a href="privacy.html">Privacy Policy</a></p>
   </footer>
 
   <script src="app.js" type="module"></script>
