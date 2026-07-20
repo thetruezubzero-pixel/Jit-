@@ -485,10 +485,16 @@ if (chatForm) {
         return;
       }
 
-      const label = INTENT_LABELS[intent] || intent;
+      // A compound question ("should I itemize and am I at audit risk")
+      // comes back as a "+"-joined intent with a result keyed by each
+      // sub-intent — render every sub-result's own card in sequence.
+      const subIntents = intent.split("+");
+      const label = subIntents.map((i) => INTENT_LABELS[i] || i).join(" + ");
       let cardHtml = "";
       try {
-        cardHtml = (RENDERERS[intent] || renderGeneric)(result);
+        cardHtml = subIntents
+          .map((i) => (RENDERERS[i] || renderGeneric)(subIntents.length > 1 ? result[i] : result))
+          .join("");
       } catch {
         /* If a specific renderer can't handle this shape, the reply text still stands alone. */
       }
