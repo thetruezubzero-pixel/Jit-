@@ -374,6 +374,132 @@ _NEEDS_AMOUNT = {
 }
 
 
+# A small built-in library of tax-law facts (2024 tax year) the chat can
+# recite directly, for questions that want a definitive number or a plain
+# explanation rather than a calculation run against the user's own figures.
+# Keyed by the topic keywords that should trigger each entry; checked before
+# intent routing so "what's the SALT cap" doesn't get misrouted into running
+# a calculator against a guessed income.
+_FACTS = [
+    {
+        "keywords": ("standard deduction",),
+        "answer": (
+            "2024 standard deduction: $14,600 (single or married filing separately), "
+            "$29,200 (married filing jointly or qualifying surviving spouse), "
+            "$21,900 (head of household). Add $1,550 per filer 65+ or blind "
+            "($1,950 if single/HOH)."
+        ),
+    },
+    {
+        "keywords": ("salt cap", "salt deduction"),
+        "answer": (
+            "The SALT (state and local tax) itemized deduction is capped at $10,000 "
+            "per return ($5,000 if married filing separately) through 2025 under the "
+            "TCJA. Owners of pass-through businesses in many states can work around "
+            "it via a Pass-Through Entity Tax (PTET) election, which lets the entity "
+            "pay and deduct state tax at the business level instead."
+        ),
+    },
+    {
+        "keywords": ("backdoor roth",),
+        "answer": (
+            "A backdoor Roth IRA: contribute to a nondeductible traditional IRA "
+            "(2024 limit $7,000, or $8,000 if 50+), then convert it to a Roth IRA. "
+            "There's no income limit on conversions, even though direct Roth "
+            "contributions phase out above ~$146,000 single / $230,000 married "
+            "filing jointly (2024). Watch the pro-rata rule if you hold other "
+            "pre-tax IRA balances — the conversion is taxed proportionally across "
+            "all your traditional IRA funds, not just the new nondeductible one."
+        ),
+    },
+    {
+        "keywords": ("ptet", "pass-through entity tax", "pass through entity tax"),
+        "answer": (
+            "A Pass-Through Entity Tax (PTET) election lets an S-corp or "
+            "partnership pay state income tax at the entity level and deduct it "
+            "as a business expense (unlimited, unlike the owner's personal SALT "
+            "deduction, which is capped at $10,000). The owner then gets an "
+            "offsetting state tax credit on their personal return. Most states "
+            "with an income tax now offer some version of this."
+        ),
+    },
+    {
+        "keywords": ("401k limit", "401(k) limit", "401k contribution", "elective deferral"),
+        "answer": (
+            "2024 401(k)/403(b) elective deferral limit: $23,000, plus a $7,500 "
+            "catch-up if you're 50+ ($30,500 total). Combined employee+employer "
+            "limit is $69,000 ($76,500 with catch-up)."
+        ),
+    },
+    {
+        "keywords": ("ira limit", "ira contribution"),
+        "answer": (
+            "2024 IRA contribution limit (traditional + Roth combined): $7,000, "
+            "or $8,000 if you're 50+. Roth eligibility phases out at "
+            "$146,000-$161,000 MAGI (single) or $230,000-$240,000 (married filing "
+            "jointly)."
+        ),
+    },
+    {
+        "keywords": ("hsa limit", "hsa contribution"),
+        "answer": (
+            "2024 HSA contribution limit: $4,150 (self-only coverage) or $8,300 "
+            "(family coverage), plus a $1,000 catch-up if you're 55+. Requires an "
+            "HSA-eligible high-deductible health plan."
+        ),
+    },
+    {
+        "keywords": ("capital gains rate", "long term capital gains", "ltcg rate"),
+        "answer": (
+            "2024 long-term capital gains rates: 0% up to $47,025 taxable income "
+            "(single) / $94,050 (married filing jointly); 15% above that up to "
+            "$518,900 / $583,750; 20% above those thresholds. A 3.8% Net "
+            "Investment Income Tax (NIIT) can also apply above $200,000 / "
+            "$250,000 MAGI."
+        ),
+    },
+    {
+        "keywords": ("amt exemption",),
+        "answer": (
+            "2024 AMT exemption: $85,700 (single/HOH), $133,300 (married filing "
+            "jointly), phasing out at 25 cents per dollar above $609,350 / "
+            "$1,218,700 AMTI. AMT rate is 26% up to $232,600 of AMT income above "
+            "the exemption, 28% above that."
+        ),
+    },
+    {
+        "keywords": ("fbar threshold", "fbar limit"),
+        "answer": (
+            "FBAR (FinCEN Form 114) is required if the aggregate value of your "
+            "foreign financial accounts exceeded $10,000 at any point during the "
+            "year. FATCA Form 8938 has higher, filing-status- and "
+            "residency-dependent thresholds (e.g. $50,000 year-end / $75,000 "
+            "any-time for a single filer living in the US)."
+        ),
+    },
+    {
+        "keywords": ("qbi", "qualified business income", "section 199a", "199a deduction"),
+        "answer": (
+            "The Section 199A QBI deduction lets eligible pass-through business "
+            "owners deduct up to 20% of qualified business income. Full "
+            "deduction below $191,950 taxable income (single) / $383,900 "
+            "(married filing jointly) in 2024; above that, wage/property limits "
+            "phase in, and specified service businesses (SSTBs — law, "
+            "accounting, consulting, etc.) lose the deduction entirely once "
+            "fully phased out."
+        ),
+    },
+]
+
+
+def _match_fact(text: str) -> str | None:
+    lowered = text.lower()
+    for fact in _FACTS:
+        if any(kw in lowered for kw in fact["keywords"]):
+            return fact["answer"]
+    return None
+
+
 _INTENT_KEYWORDS = {
     "amt_calculate": ("amt", "alternative minimum tax"),
     "quarterly_estimate": ("quarterly", "estimated payment", "estimated tax payment"),
@@ -419,6 +545,18 @@ def chat(payload: dict) -> dict:
     of a form.
     """
     message = payload.get("message", "")
+
+    fact_answer = _match_fact(message)
+    if fact_answer is not None:
+        # A factual lookup ("what's the SALT cap") doesn't depend on the
+        # user's own numbers and shouldn't disturb whatever topic/amount is
+        # already remembered, so it's answered immediately, standalone.
+        return {
+            "intent": "fact",
+            "extracted": {"amount": None, "filing_status": None, "state": None},
+            "reply": fact_answer,
+            "result": {},
+        }
 
     extracted_amount = _extract_amount(message)
     amount = extracted_amount if extracted_amount is not None else _conversation_context["amount"]

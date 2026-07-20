@@ -269,8 +269,9 @@ if (chatForm) {
 
       const { intent, reply, result } = response.data;
 
-      if (intent === "clarify") {
-        // Just asking a question back — no engine ran yet, so there's no
+      if (intent === "clarify" || intent === "fact") {
+        // Either asking a question back, or answering straight from the
+        // built-in fact library — neither ran an engine, so there's no
         // result card to show, and "Routed to" would be misleading.
         addChatBubble("assistant", reply);
         return;

@@ -335,3 +335,49 @@ class TestChatMemoryAndClarify:
         blocked waiting for one."""
         response = _run("chat", {"message": "is this contract risky: includes indemnification"})
         assert response["data"]["intent"] == "document_analyze"
+
+
+class TestFactLookup:
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    @pytest.mark.parametrize(
+        "message,expected_snippet",
+        [
+            ("what's the standard deduction?", "$14,600"),
+            ("what is the salt cap", "$10,000"),
+            ("how does a backdoor roth work", "nondeductible traditional IRA"),
+            ("explain ptet to me", "entity level"),
+            ("what's the 401k limit this year", "$23,000"),
+            ("ira contribution limit", "$7,000"),
+            ("hsa contribution limit for family", "$8,300"),
+            ("long term capital gains rate", "0%"),
+            ("amt exemption amount", "$85,700"),
+            ("fbar threshold", "$10,000"),
+            ("what is qbi", "20%"),
+        ],
+    )
+    def test_fact_answers_directly_without_a_calculation(self, message, expected_snippet):
+        response = _run("chat", {"message": message})
+        data = response["data"]
+        assert data["intent"] == "fact"
+        assert data["result"] == {}
+        assert expected_snippet in data["reply"]
+
+    def test_fact_lookup_does_not_disturb_remembered_context(self):
+        _run("chat", {"message": "I make 150k, married, in NY"})
+        fact_response = _run("chat", {"message": "what's the salt cap"})
+        assert fact_response["data"]["intent"] == "fact"
+
+        # The remembered amount/filing status/state should be untouched.
+        follow_up = _run("chat", {"message": "what's my tax"})
+        assert follow_up["data"]["extracted"]["amount"] == 150_000.0
+        assert follow_up["data"]["extracted"]["filing_status"] == "married_filing_jointly"
+        assert follow_up["data"]["extracted"]["state"] == "NY"
+
+    def test_fact_lookup_needs_no_amount_even_with_no_context(self):
+        response = _run("chat", {"message": "what's the standard deduction?"})
+        assert response["data"]["intent"] == "fact"
