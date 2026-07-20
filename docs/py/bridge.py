@@ -357,7 +357,59 @@ _conversation_context: dict = {
     "filing_status": None,
     "state": None,
     "pending_intent": None,
+    "suggested_intent": None,
 }
+
+# After answering one topic, a natural next question often follows the same
+# income/filing-status/state — offer it instead of waiting to be asked, and
+# let a short affirmative reply run it automatically (see _is_affirmative).
+# platform_analyze is excluded: it already covers everything, and every
+# NEEDS_AMOUNT intent maps somewhere so the chain has real content each hop.
+_NEXT_SUGGESTION = {
+    "tax_calculate": "risk_assess",
+    "amt_calculate": "tax_calculate",
+    "quarterly_estimate": "tax_calculate",
+    "compliance_check": "risk_assess",
+    "filing_status_tree": "tax_calculate",
+    "deduction_optimize": "algorithm_optimize",
+    "risk_assess": "deduction_optimize",
+    "algorithm_optimize": "deduction_optimize",
+    "document_analyze": "compliance_check",
+}
+
+_SUGGESTION_TEXT = {
+    "tax_calculate": "Want your full tax calculated too?",
+    "risk_assess": "Want me to also check your audit risk?",
+    "deduction_optimize": "Want me to check your deductions too?",
+    "algorithm_optimize": "Want other tax-saving strategies too?",
+    "compliance_check": "Want a compliance check too?",
+}
+
+_AFFIRMATIVE_PHRASES = {
+    "yes",
+    "yeah",
+    "yep",
+    "yup",
+    "sure",
+    "ok",
+    "okay",
+    "please",
+    "please do",
+    "do it",
+    "go ahead",
+    "sounds good",
+    "yes please",
+    "sure thing",
+}
+
+
+def _is_affirmative(text: str) -> bool:
+    """True only for a short, standalone "yes"-shaped reply — not merely a
+    message that happens to contain "yes" as one word among others, which
+    could just as easily be a real new question ("yes but what about AMT
+    instead")."""
+    return text.strip().lower().rstrip(".!?") in _AFFIRMATIVE_PHRASES
+
 
 # Intents where a dollar amount is essential to computing anything real —
 # rather than silently guessing $120k when none is given or remembered,
@@ -1051,14 +1103,22 @@ def chat(payload: dict) -> dict:
         message, "business owner", "own a business", "my business", "llc", "s-corp"
     )
 
-    intents = _classify_intents(message)
-    intent_matched = bool(intents)
-    if not intent_matched and _conversation_context["pending_intent"]:
-        # This message is just an answer ("150k, self-employed") to the
-        # question chat() asked last turn, not a fresh, unrelated topic —
-        # resume what was actually being asked about instead of falling
-        # back to the generic full-case default.
-        intents = [_conversation_context["pending_intent"]]
+    suggested_intent = _conversation_context["suggested_intent"]
+    if suggested_intent and _is_affirmative(message):
+        # A short "yes"/"sure" reply to the question chat() just asked
+        # ("Want me to also check your audit risk?") — run the suggestion
+        # directly rather than trying to classify "yes" as a topic.
+        intents = [suggested_intent]
+        intent_matched = True
+    else:
+        intents = _classify_intents(message)
+        intent_matched = bool(intents)
+        if not intent_matched and _conversation_context["pending_intent"]:
+            # This message is just an answer ("150k, self-employed") to the
+            # question chat() asked last turn, not a fresh, unrelated topic —
+            # resume what was actually being asked about instead of falling
+            # back to the generic full-case default.
+            intents = [_conversation_context["pending_intent"]]
 
     # An unmatched message still defaults to platform_analyze for the
     # purposes of the amount-needed check below, exactly like a single
@@ -1069,6 +1129,7 @@ def chat(payload: dict) -> dict:
 
     if any(i in _NEEDS_AMOUNT for i in gate_intents) and amount is None:
         _conversation_context["pending_intent"] = gate_intents[0]
+        _conversation_context["suggested_intent"] = None
         return {
             "intent": "clarify",
             "extracted": {
@@ -1105,6 +1166,7 @@ def chat(payload: dict) -> dict:
             "compliance (FBAR/FATCA), filing status, audit risk, tax-saving "
             "strategies, or a specific tax-law fact."
         )
+        _conversation_context["suggested_intent"] = None
         _record_session_entry(intent, amount, self_employed, business_owner, state, result)
         return {
             "intent": intent,
@@ -1134,10 +1196,17 @@ def chat(payload: dict) -> dict:
 
     if len(computed) == 1:
         intent, result, reply = computed[0]
+        next_intent = _NEXT_SUGGESTION.get(intent)
+        _conversation_context["suggested_intent"] = next_intent
+        if next_intent:
+            reply = f"{reply} {_SUGGESTION_TEXT[next_intent]}"
     else:
         intent = "+".join(i for i, _, _ in computed)
         result = {i: r for i, r, _ in computed}
         reply = " ".join(r for _, _, r in computed)
+        # A compound answer already covered two topics — don't also tack on
+        # a suggestion for a third.
+        _conversation_context["suggested_intent"] = None
 
     return {
         "intent": intent,
