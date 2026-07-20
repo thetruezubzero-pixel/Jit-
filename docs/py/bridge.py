@@ -804,6 +804,72 @@ _FACTS = [
             "months they weren't eligible for an employer-subsidized plan."
         ),
     },
+    {
+        "keywords": ("mileage rate", "standard mileage"),
+        "answer": (
+            "2024 standard mileage rates: 67 cents/mile for business use, "
+            "21 cents/mile for medical or moving (active-duty military "
+            "only), and 14 cents/mile for charitable use (set by statute, "
+            "not indexed for inflation)."
+        ),
+    },
+    {
+        "keywords": ("home office deduction",),
+        "answer": (
+            "The simplified home-office method deducts $5 per square foot "
+            "of dedicated business-use space, up to 300 sq ft ($1,500 "
+            "max/year). The regular method instead deducts that same "
+            "business-use percentage of actual home expenses (rent, "
+            "utilities, insurance, depreciation) — whichever is larger is "
+            "worth comparing. Only available for space used regularly and "
+            "exclusively for business."
+        ),
+    },
+    {
+        "keywords": ("roth ira income limit", "roth ira phase out", "roth ira phase-out"),
+        "answer": (
+            "2024 Roth IRA contribution phases out at MAGI $146,000– "
+            "$161,000 (single/head of household), $230,000–$240,000 "
+            "(married filing jointly), and $0–$10,000 (married filing "
+            "separately, if you lived with your spouse at all during the "
+            "year)."
+        ),
+    },
+    {
+        "keywords": (
+            "traditional ira deduction limit",
+            "traditional ira phase out",
+            "traditional ira phase-out",
+        ),
+        "answer": (
+            "If you're covered by a workplace retirement plan, your 2024 "
+            "traditional IRA deduction phases out at MAGI $77,000–$87,000 "
+            "(single), $123,000–$143,000 (married filing jointly, you're "
+            "covered). If only your spouse is covered, the phase-out is "
+            "$230,000–$240,000. Not covered by a plan at all (and neither "
+            "is your spouse)? The deduction isn't limited by income."
+        ),
+    },
+    {
+        "keywords": ("rmd", "rmd age", "required minimum distribution"),
+        "answer": (
+            "Required minimum distributions from traditional IRAs/401(k)s "
+            "must start at age 73 (for those turning 72 after 2022), under "
+            "SECURE 2.0 — rising to 75 starting in 2033. Missing an RMD "
+            "carries a 25% excise tax on the shortfall (10% if corrected "
+            "promptly)."
+        ),
+    },
+    {
+        "keywords": ("fsa limit", "fsa contribution"),
+        "answer": (
+            "2024 health FSA contribution limit: $3,200 per employee "
+            "(via salary reduction). Employers may allow up to $640 to "
+            "carry over into the next year, or a grace period instead — "
+            "not both — and unused balances above that are forfeited "
+            "('use it or lose it')."
+        ),
+    },
 ]
 
 

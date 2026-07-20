@@ -604,6 +604,12 @@ class TestFactLookup:
             ("what is a mega backdoor roth", "$69,000"),
             ("educator expense deduction amount", "$300"),
             ("self employed health insurance deduction", "100%"),
+            ("what's the standard mileage rate", "67 cents"),
+            ("can I take a home office deduction", "$5 per square foot"),
+            ("what's the roth ira income limit", "$146,000"),
+            ("what's the traditional ira deduction limit", "$77,000"),
+            ("what age do I need to take my rmd", "age 73"),
+            ("what's the fsa contribution limit", "$3,200"),
         ],
     )
     def test_fact_answers_directly_without_a_calculation(self, message, expected_snippet):
