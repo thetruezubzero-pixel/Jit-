@@ -444,6 +444,7 @@ _FACTS = [
             "$21,900 (head of household). Add $1,550 per filer 65+ or blind "
             "($1,950 if single/HOH)."
         ),
+        "citation": "IRC §63(c)",
     },
     {
         "keywords": ("salt cap", "salt deduction"),
@@ -454,6 +455,7 @@ _FACTS = [
             "it via a Pass-Through Entity Tax (PTET) election, which lets the entity "
             "pay and deduct state tax at the business level instead."
         ),
+        "citation": "IRC §164(b)(6)",
     },
     {
         "keywords": ("backdoor roth",),
@@ -466,6 +468,7 @@ _FACTS = [
             "pre-tax IRA balances — the conversion is taxed proportionally across "
             "all your traditional IRA funds, not just the new nondeductible one."
         ),
+        "citation": "IRC §408A(c)(3) (conversion limit repealed); §408(d)(3) (conversion)",
     },
     {
         "keywords": ("ptet", "pass-through entity tax", "pass through entity tax"),
@@ -477,6 +480,7 @@ _FACTS = [
             "offsetting state tax credit on their personal return. Most states "
             "with an income tax now offer some version of this."
         ),
+        "citation": "IRS Notice 2020-75 (state PTET workaround to the IRC §164(b)(6) SALT cap)",
     },
     {
         "keywords": ("401k limit", "401(k) limit", "401k contribution", "elective deferral"),
@@ -485,6 +489,7 @@ _FACTS = [
             "catch-up if you're 50+ ($30,500 total). Combined employee+employer "
             "limit is $69,000 ($76,500 with catch-up)."
         ),
+        "citation": "IRC §402(g)",
     },
     {
         "keywords": ("ira limit", "ira contribution"),
@@ -494,6 +499,7 @@ _FACTS = [
             "$146,000-$161,000 MAGI (single) or $230,000-$240,000 (married filing "
             "jointly)."
         ),
+        "citation": "IRC §219(b)(5)(A)",
     },
     {
         "keywords": ("hsa limit", "hsa contribution"),
@@ -502,6 +508,7 @@ _FACTS = [
             "(family coverage), plus a $1,000 catch-up if you're 55+. Requires an "
             "HSA-eligible high-deductible health plan."
         ),
+        "citation": "IRC §223(b)",
     },
     {
         "keywords": ("capital gains rate", "long term capital gains", "ltcg rate"),
@@ -512,6 +519,7 @@ _FACTS = [
             "Investment Income Tax (NIIT) can also apply above $200,000 / "
             "$250,000 MAGI."
         ),
+        "citation": "IRC §1(h)",
     },
     {
         "keywords": ("amt exemption",),
@@ -521,6 +529,7 @@ _FACTS = [
             "$1,218,700 AMTI. AMT rate is 26% up to $232,600 of AMT income above "
             "the exemption, 28% above that."
         ),
+        "citation": "IRC §55(d)",
     },
     {
         "keywords": ("fbar threshold", "fbar limit"),
@@ -531,6 +540,7 @@ _FACTS = [
             "residency-dependent thresholds (e.g. $50,000 year-end / $75,000 "
             "any-time for a single filer living in the US)."
         ),
+        "citation": "31 U.S.C. §5314 (FBAR, not the IRC); IRC §6038D (FATCA Form 8938)",
     },
     {
         "keywords": ("qbi", "qualified business income", "section 199a", "199a deduction"),
@@ -543,6 +553,7 @@ _FACTS = [
             "accounting, consulting, etc.) lose the deduction entirely once "
             "fully phased out."
         ),
+        "citation": "IRC §199A",
     },
     {
         "keywords": ("child tax credit",),
@@ -552,6 +563,7 @@ _FACTS = [
             "$1,000 of MAGI above $200,000 (single/HOH) or $400,000 (married "
             "filing jointly)."
         ),
+        "citation": "IRC §24",
     },
     {
         "keywords": ("eitc", "earned income tax credit", "earned income credit"),
@@ -561,6 +573,7 @@ _FACTS = [
             "out around $18,600-$59,900 (single/HOH) or $25,500-$66,800 (married "
             "filing jointly) depending on number of qualifying children."
         ),
+        "citation": "IRC §32",
     },
     {
         "keywords": (
@@ -575,6 +588,7 @@ _FACTS = [
             "AGI (35% at AGI $15,000 or below, phasing down to 20% above "
             "$43,000)."
         ),
+        "citation": "IRC §21",
     },
     {
         "keywords": ("american opportunity credit", "aotc"),
@@ -586,6 +600,7 @@ _FACTS = [
             "jointly). Limited to a student's first 4 years of postsecondary "
             "education."
         ),
+        "citation": "IRC §25A(b)",
     },
     {
         "keywords": ("lifetime learning credit",),
@@ -596,6 +611,7 @@ _FACTS = [
             "single, $160,000-$180,000 married filing jointly), but with no "
             "limit on the number of years you can claim it."
         ),
+        "citation": "IRC §25A(c)",
     },
     {
         "keywords": ("estate tax exemption", "estate tax exclusion"),
@@ -606,6 +622,7 @@ _FACTS = [
             "scheduled to roughly halve at the end of 2025 absent new "
             "legislation."
         ),
+        "citation": "IRC §2010(c)",
     },
     {
         "keywords": ("gift tax exclusion", "annual gift exclusion"),
@@ -615,6 +632,7 @@ _FACTS = [
             "recipients. Gifts above that use up part of your lifetime estate "
             "tax exclusion rather than triggering gift tax immediately."
         ),
+        "citation": "IRC §2503(b)",
     },
     {
         "keywords": ("529 plan", "529 contribution"),
@@ -626,6 +644,7 @@ _FACTS = [
             "of exclusions at once ($90,000, or $180,000 for a couple) without "
             "using more exclusion in years 2-5."
         ),
+        "citation": "IRC §529",
     },
     {
         "keywords": ("self employment tax rate", "self-employment tax rate", "se tax rate"),
@@ -636,6 +655,7 @@ _FACTS = [
             "earnings. Half of the SE tax you pay is deductible above the "
             "line."
         ),
+        "citation": "IRC §1401",
     },
     {
         "keywords": ("capital loss deduction", "capital loss limit"),
@@ -645,6 +665,7 @@ _FACTS = [
             "separately) can offset ordinary income per year. Unused losses "
             "carry forward indefinitely to future tax years."
         ),
+        "citation": "IRC §1211(b); §1212",
     },
     {
         "keywords": ("charitable deduction limit", "charitable contribution limit"),
@@ -654,6 +675,7 @@ _FACTS = [
             "30% of AGI. Contributions above those limits carry forward for up "
             "to 5 years."
         ),
+        "citation": "IRC §170(b)",
     },
     {
         "keywords": ("kiddie tax",),
@@ -663,6 +685,7 @@ _FACTS = [
             "marginal rate. The first $1,300 is tax-free and the next $1,300 "
             "is taxed at the child's own rate."
         ),
+        "citation": "IRC §1(g)",
     },
     {
         "keywords": ("social security wage base", "ss wage base"),
@@ -672,6 +695,7 @@ _FACTS = [
             "to this amount of earnings. The 1.45%/2.9% Medicare portion has no "
             "wage cap."
         ),
+        "citation": "IRC §3121(a)(1) (FICA wage base)",
     },
     {
         "keywords": ("niit", "net investment income tax"),
@@ -681,6 +705,7 @@ _FACTS = [
             "exceeds $200,000 (single/HOH), $250,000 (married filing jointly), "
             "or $125,000 (married filing separately)."
         ),
+        "citation": "IRC §1411",
     },
     {
         "keywords": ("additional medicare tax",),
@@ -690,6 +715,7 @@ _FACTS = [
             "jointly), or $125,000 (married filing separately). It isn't "
             "employer-matched and the thresholds aren't indexed for inflation."
         ),
+        "citation": "IRC §3101(b)(2)",
     },
     {
         "keywords": ("mortgage interest deduction", "mortgage interest limit"),
@@ -699,6 +725,7 @@ _FACTS = [
             "loans originated after December 15, 2017. Loans from before then "
             "are grandfathered at the older $1 million cap."
         ),
+        "citation": "IRC §163(h)(3)",
     },
     {
         "keywords": ("student loan interest deduction",),
@@ -708,6 +735,7 @@ _FACTS = [
             "$80,000-$95,000 (single) or $165,000-$195,000 (married filing "
             "jointly) in 2024; unavailable if married filing separately."
         ),
+        "citation": "IRC §221",
     },
     {
         "keywords": (
@@ -722,6 +750,7 @@ _FACTS = [
             "as long as you owned and used it as your main home for at least "
             "2 of the last 5 years before the sale."
         ),
+        "citation": "IRC §121",
     },
     {
         "keywords": ("wash sale rule", "wash sale"),
@@ -732,6 +761,7 @@ _FACTS = [
             "loss isn't gone — it's added to the cost basis of the "
             "replacement shares."
         ),
+        "citation": "IRC §1091",
     },
     {
         "keywords": ("1031 exchange", "like kind exchange", "like-kind exchange"),
@@ -742,6 +772,7 @@ _FACTS = [
             "the replacement within 45 days of the sale and close within 180 "
             "days. Only real property qualifies since the 2017 tax law."
         ),
+        "citation": "IRC §1031",
     },
     {
         "keywords": (
@@ -755,6 +786,7 @@ _FACTS = [
             "residence test or the physical presence test (330 full days "
             "abroad in a 12-month period)."
         ),
+        "citation": "IRC §911",
     },
     {
         "keywords": ("section 179", "bonus depreciation"),
@@ -766,6 +798,7 @@ _FACTS = [
             "scheduled to keep phasing down 20 points a year absent new "
             "legislation."
         ),
+        "citation": "IRC §179 (bonus depreciation is a separate provision, IRC §168(k))",
     },
     {
         "keywords": ("net operating loss", "nol carryforward", "nol carryback"),
@@ -775,6 +808,7 @@ _FACTS = [
             "they're used — they can no longer be carried back (except "
             "certain farming and insurance-company losses)."
         ),
+        "citation": "IRC §172",
     },
     {
         "keywords": ("mega backdoor roth",),
@@ -786,6 +820,7 @@ _FACTS = [
             "convert those after-tax dollars to Roth — much larger than a "
             "regular backdoor Roth's $7,000 IRA cap."
         ),
+        "citation": "IRC §401(k); §402A(c)(4) (in-plan Roth rollover)",
     },
     {
         "keywords": ("educator expense deduction",),
@@ -794,6 +829,7 @@ _FACTS = [
             "classroom supplies above the line, no itemizing required. Two "
             "educators married filing jointly can each claim their own $300."
         ),
+        "citation": "IRC §62(a)(2)(D)",
     },
     {
         "keywords": ("self employed health insurance", "self-employed health insurance"),
@@ -803,6 +839,7 @@ _FACTS = [
             "line, limited to net self-employment income, and only for "
             "months they weren't eligible for an employer-subsidized plan."
         ),
+        "citation": "IRC §162(l)",
     },
     {
         "keywords": ("mileage rate", "standard mileage"),
@@ -812,6 +849,7 @@ _FACTS = [
             "only), and 14 cents/mile for charitable use (set by statute, "
             "not indexed for inflation)."
         ),
+        "citation": "Annual IRS notice under IRC §162; §170(i) sets the charitable rate",
     },
     {
         "keywords": ("home office deduction",),
@@ -824,6 +862,7 @@ _FACTS = [
             "worth comparing. Only available for space used regularly and "
             "exclusively for business."
         ),
+        "citation": "IRC §280A(c)",
     },
     {
         "keywords": ("roth ira income limit", "roth ira phase out", "roth ira phase-out"),
@@ -834,6 +873,7 @@ _FACTS = [
             "separately, if you lived with your spouse at all during the "
             "year)."
         ),
+        "citation": "IRC §408A(c)(3)",
     },
     {
         "keywords": (
@@ -849,6 +889,7 @@ _FACTS = [
             "$230,000–$240,000. Not covered by a plan at all (and neither "
             "is your spouse)? The deduction isn't limited by income."
         ),
+        "citation": "IRC §219(g)",
     },
     {
         "keywords": ("rmd", "rmd age", "required minimum distribution"),
@@ -859,6 +900,7 @@ _FACTS = [
             "carries a 25% excise tax on the shortfall (10% if corrected "
             "promptly)."
         ),
+        "citation": "IRC §401(a)(9)",
     },
     {
         "keywords": ("fsa limit", "fsa contribution"),
@@ -869,6 +911,7 @@ _FACTS = [
             "not both — and unused balances above that are forfeited "
             "('use it or lose it')."
         ),
+        "citation": "IRC §125(i)",
     },
     {
         "keywords": ("medical expense deduction", "medical expense threshold"),
@@ -880,6 +923,7 @@ _FACTS = [
             "premiums paid pre-tax (most employer plans) don't count again "
             "here."
         ),
+        "citation": "IRC §213",
     },
     {
         "keywords": (
@@ -899,6 +943,7 @@ _FACTS = [
             "amount you were insolvent by), and qualified principal "
             "residence debt under separate rules."
         ),
+        "citation": "IRC §61(a)(12) (income); exclusions under §108",
     },
     {
         "keywords": ("bankruptcy discharge", "debt discharged in bankruptcy"),
@@ -910,6 +955,7 @@ _FACTS = [
             "carryforwards or basis in property) by the excluded amount "
             "instead."
         ),
+        "citation": "IRC §108(a)(1)(A)",
     },
     {
         "keywords": ("life insurance proceeds", "life insurance payout", "life insurance taxable"),
@@ -920,6 +966,7 @@ _FACTS = [
             "and proceeds can still be pulled into the deceased's taxable "
             "estate for estate-tax purposes if they owned the policy."
         ),
+        "citation": "IRC §101(a)",
     },
     {
         "keywords": (
@@ -936,24 +983,42 @@ _FACTS = [
             "Employer-paid premiums themselves aren't taxable income to "
             "you up front — the benefit is what's taxed later."
         ),
+        "citation": "IRC §104(a)(3) (self-paid, tax-free); §105(a) (employer-paid, taxable)",
+    },
+    {
+        "keywords": ("foreign tax credit", "ftc limitation"),
+        "answer": (
+            "The Foreign Tax Credit lets you offset US tax dollar-for-"
+            "dollar with income tax already paid to a foreign country on "
+            "the same income, avoiding double taxation — the main "
+            "alternative to (and usually better than) the Foreign Earned "
+            "Income Exclusion for higher earners, since it's not capped at "
+            "a fixed exclusion amount. The credit is limited to the US tax "
+            "attributable to that foreign income (computed per income "
+            "category/'basket'); unused credit carries back 1 year or "
+            "forward 10."
+        ),
+        "citation": "IRC §901 (credit); §904 (limitation)",
     },
 ]
 
 
-def _match_fact(text: str) -> str | None:
-    """Return the answer for the most specific keyword match, not just the
-    first one found in list order — e.g. "mega backdoor roth" must win over
-    the plain "backdoor roth" entry even though the latter's keyword is a
-    substring of the former's, and happens to be declared earlier."""
+def _match_fact(text: str) -> tuple[str, str] | None:
+    """Return the (answer, citation) for the most specific keyword match,
+    not just the first one found in list order — e.g. "mega backdoor roth"
+    must win over the plain "backdoor roth" entry even though the latter's
+    keyword is a substring of the former's, and happens to be declared
+    earlier. The citation is a real statute/IRC section reference, not a
+    generated summary — every fact traces back to an actual legal source."""
     lowered = text.lower()
-    best_answer = None
+    best_match = None
     best_len = -1
     for fact in _FACTS:
         for kw in fact["keywords"]:
             if kw in lowered and len(kw) > best_len:
-                best_answer = fact["answer"]
+                best_match = (fact["answer"], fact["citation"])
                 best_len = len(kw)
-    return best_answer
+    return best_match
 
 
 _INTENT_KEYWORDS = {
@@ -1218,14 +1283,16 @@ def chat(payload: dict) -> dict:
     """
     message = payload.get("message", "")
 
-    fact_answer = _match_fact(message)
-    if fact_answer is not None:
+    fact_match = _match_fact(message)
+    if fact_match is not None:
         # A factual lookup ("what's the SALT cap") doesn't depend on the
         # user's own numbers and shouldn't disturb whatever topic/amount is
         # already remembered, so it's answered immediately, standalone.
+        fact_answer, fact_citation = fact_match
         return {
             "intent": "fact",
             "routing_reason": "fact_lookup",
+            "citation": fact_citation,
             "extracted": {"amount": None, "filing_status": None, "state": None},
             "reply": fact_answer,
             "result": {},

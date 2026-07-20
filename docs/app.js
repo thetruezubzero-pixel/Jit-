@@ -583,13 +583,19 @@ if (chatForm) {
       // or a real calculation all update the same underlying context.
       persistChatState(dispatch);
 
-      const { intent, matched, reply, result, routing_reason, matched_keywords } = response.data;
+      const { intent, matched, reply, result, routing_reason, matched_keywords, citation } =
+        response.data;
 
       if (intent === "clarify" || intent === "fact") {
         // Either asking a question back, or answering straight from the
         // built-in fact library — neither ran an engine, so there's no
         // result card to show, and "Routed to" would be misleading.
-        addChatBubble("assistant", reply);
+        // A fact answer traces back to a real statute/IRC citation (not a
+        // generated summary) — shown so the source is checkable, not just
+        // asserted.
+        const citationHtml =
+          intent === "fact" && citation ? `<span class="citation-note">Source: ${citation}</span>` : "";
+        addChatBubble("assistant", `${reply}${citationHtml}`);
         return;
       }
 

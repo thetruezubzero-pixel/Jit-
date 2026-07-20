@@ -15,7 +15,7 @@
 // cache cleanup has nothing to clean up and a returning visitor can stay
 // stuck on stale assets far longer than intended — this is what caused a
 // shipped CSS fix to not actually show up on a real device.
-const CACHE_VERSION = "v7";
+const CACHE_VERSION = "v8";
 const CACHE_NAME = `jit-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [

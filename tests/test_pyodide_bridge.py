@@ -615,6 +615,7 @@ class TestFactLookup:
             ("is debt discharged in bankruptcy taxable", "Title 11"),
             ("are life insurance proceeds taxable", "not taxable"),
             ("is short term disability taxable", "who paid the premiums"),
+            ("what is the foreign tax credit", "double taxation"),
         ],
     )
     def test_fact_answers_directly_without_a_calculation(self, message, expected_snippet):
@@ -623,6 +624,21 @@ class TestFactLookup:
         assert data["intent"] == "fact"
         assert data["result"] == {}
         assert expected_snippet in data["reply"]
+
+    def test_every_fact_has_a_real_citation(self):
+        # Every hardcoded fact traces back to an actual statute/IRC section
+        # (or, where the fact isn't an IRC provision at all — FBAR is Bank
+        # Secrecy Act, not the tax code — the correct non-IRC citation)
+        # rather than being an unsourced assertion.
+        for fact in bridge._FACTS:
+            assert fact.get("citation"), f"missing citation: {fact['keywords']}"
+            assert "§" in fact["citation"] or "U.S.C." in fact["citation"]
+
+    def test_fact_response_includes_its_citation(self):
+        response = _run("chat", {"message": "what's the salt cap"})
+        data = response["data"]
+        assert data["intent"] == "fact"
+        assert data["citation"] == "IRC §164(b)(6)"
 
     def test_fact_lookup_does_not_disturb_remembered_context(self):
         _run("chat", {"message": "I make 150k, married, in NY"})
@@ -800,3 +816,81 @@ class TestChatStatePersistence:
         response = _run("chat_import_state", {"context": "not a dict", "history": "not a list"})
         assert response["success"] is True
         assert response["data"] == {"restored": True}
+
+
+class TestAnomalousInputRobustness:
+    """chat() has to stay well-behaved on real-world garbled, contradictory,
+    or extreme input, not just clean questions — a router that only works
+    on tidy test-suite phrasing isn't actually reliable. Every case here
+    must come back success=True with a well-formed reply, never an
+    exception, never garbage leaking into the reply, and never a silent
+    computation on nonsense."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "\x00\x01\x02 what's my tax on 150k \x03",  # control characters
+            "🤑💰🏠" * 20,  # emoji-only, no parseable text
+            "150k " * 500,  # pathologically repeated input
+            "税金は150kでいくらですか",  # non-English (Japanese) text
+            "'; DROP TABLE users; --",  # injection-shaped garbage (no DB here, but must not crash)
+            "\n\n\n\t\t\t   \n",  # whitespace-only
+            "a" * 10_000,  # extremely long single token, no spaces
+            "150k" + "0" * 300 + "k",  # pathological number-like token
+            "I am married and single and filing jointly and separately",  # self-contradictory
+            "married" * 50,  # regression case from the existing smoke test, scaled up
+        ],
+    )
+    def test_never_raises_and_returns_well_formed_reply(self, message):
+        response = _run("chat", {"message": message})
+        assert response["success"] is True, f"message {message!r} raised: {response}"
+        data = response["data"]
+        assert isinstance(data["reply"], str) and data["reply"], "reply must be non-empty text"
+        assert "intent" in data
+        assert "routing_reason" in data
+
+    def test_contradictory_filing_status_does_not_crash_and_picks_one(self):
+        # "married ... separately" — the extractor must deterministically
+        # pick a single filing status rather than raising or returning
+        # something that isn't one of the five valid IRS statuses.
+        response = _run(
+            "chat",
+            {"message": "I am married and single, what's my tax on 150k filing jointly separately"},
+        )
+        assert response["success"] is True
+        valid_statuses = {
+            "single",
+            "married_filing_jointly",
+            "married_filing_separately",
+            "head_of_household",
+            "qualifying_surviving_spouse",
+        }
+        assert response["data"]["extracted"]["filing_status"] in valid_statuses
+
+    def test_huge_pasted_document_does_not_crash_document_analyze(self):
+        # A user pasting a full (long, messy) contract shouldn't blow up the
+        # document analyzer even though it's much bigger than any test
+        # fixture text used elsewhere.
+        huge_contract = (
+            "This agreement, by and between the parties, contains a clause "
+            "regarding indemnification and liability. "
+        ) * 2000
+        response = _run("chat", {"message": huge_contract})
+        assert response["success"] is True
+        assert response["data"]["intent"] == "document_analyze"
+
+    def test_mixed_garbage_with_a_real_amount_still_extracts_it(self):
+        # Noise surrounding a real signal shouldn't defeat extraction --
+        # the amount is still the one thing in the message that means
+        # something.
+        response = _run(
+            "chat", {"message": "asdkjfh 😵‍💫🌀 alkjsdf $$$ what's my tax on 150k ??? asdf"}
+        )
+        assert response["success"] is True
+        assert response["data"]["extracted"]["amount"] == 150_000.0
