@@ -359,6 +359,7 @@ _conversation_context: dict = {
     "amount": None,
     "filing_status": None,
     "state": None,
+    "state_explicit": False,
     "pending_intent": None,
     "suggested_intent": None,
 }
@@ -1119,11 +1120,18 @@ def _compute_intent(
     state: str,
     self_employed: bool,
     business_owner: bool,
+    state_explicit: bool = True,
 ) -> tuple[dict, str]:
     """Run one known intent's engine and build its reply. Factored out of
     chat() so a compound question ("should I itemize and am I at audit
     risk") can call this twice and combine the results, instead of the
-    router only ever being able to answer one topic per message."""
+    router only ever being able to answer one topic per message.
+
+    state_explicit tells the state-sensitive replies (tax_calculate,
+    platform_analyze) whether the state was actually said by the user at
+    some point, or is a silent CA default — worth disclosing rather than
+    quietly presenting a guess as if it were given information."""
+    state_note = "" if state_explicit else f" (assuming {state} since no state was mentioned)"
     if intent == "tax_calculate":
         result = tax_calculate(
             {
@@ -1136,8 +1144,8 @@ def _compute_intent(
         )
         reply = (
             f"Alright — ${amount:,.0f} in income, filing {filing_status.replace('_', ' ')} in "
-            f"{state}: you're looking at about ${result['total_tax']:,.2f} total tax, "
-            f"roughly {result['effective_total_rate']:.1%} of it overall."
+            f"{state}{state_note}: you're looking at about ${result['total_tax']:,.2f} total "
+            f"tax, roughly {result['effective_total_rate']:.1%} of it overall."
         )
     elif intent == "amt_calculate":
         result = amt_calculate(
@@ -1271,6 +1279,8 @@ def _compute_intent(
             f"legal risk score {result['legal']['risk_score']:.2f}, and the top move is "
             f"{result['algorithms']['primary_recommendation']}."
         )
+        if not state_explicit:
+            reply += f" (Assuming {state} since no state was mentioned.)"
     return result, reply
 
 
@@ -1314,6 +1324,11 @@ def chat(payload: dict) -> dict:
         if _mentions_state(message)
         else (_conversation_context["state"] or "CA")
     )
+    # Tracked separately from `state` itself, since once a default gets
+    # remembered in _conversation_context there'd be no way to tell a real
+    # "CA" the user typed apart from a silent guess — this is what makes it
+    # possible to say so honestly in the reply instead of quietly assuming.
+    state_explicit = _mentions_state(message) or bool(_conversation_context["state_explicit"])
     self_employed = _has_any(
         message, "self employ", "self-employ", "1099", "schedule c", "freelance"
     )
@@ -1356,6 +1371,14 @@ def chat(payload: dict) -> dict:
     gate_intents = intents or ["platform_analyze"]
 
     if any(i in _NEEDS_AMOUNT for i in gate_intents) and amount is None:
+        # A state or filing status mentioned in this same message ("what's
+        # my tax in Texas") must survive to the next turn just like it
+        # would for a matched intent — otherwise "in Texas" gets silently
+        # dropped the moment income wasn't also given yet, and the eventual
+        # answer defaults to CA without ever having forgotten on purpose.
+        _conversation_context["filing_status"] = filing_status
+        _conversation_context["state"] = state
+        _conversation_context["state_explicit"] = state_explicit
         _conversation_context["pending_intent"] = gate_intents[0]
         _conversation_context["suggested_intent"] = None
         return {
@@ -1380,6 +1403,7 @@ def chat(payload: dict) -> dict:
     _conversation_context["amount"] = amount
     _conversation_context["filing_status"] = filing_status
     _conversation_context["state"] = state
+    _conversation_context["state_explicit"] = state_explicit
     _conversation_context["pending_intent"] = None
 
     if not intents:
@@ -1416,7 +1440,14 @@ def chat(payload: dict) -> dict:
         (
             i,
             *_compute_intent(
-                i, message, amount, filing_status, state, self_employed, business_owner
+                i,
+                message,
+                amount,
+                filing_status,
+                state,
+                self_employed,
+                business_owner,
+                state_explicit,
             ),
         )
         for i in intents

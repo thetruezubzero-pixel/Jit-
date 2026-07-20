@@ -533,6 +533,29 @@ class TestChatMemoryAndClarify:
         assert second["data"]["extracted"]["filing_status"] == "married_filing_jointly"
         assert second["data"]["extracted"]["state"] == "NY"
 
+    def test_state_mentioned_before_income_is_not_lost_at_the_clarify_gate(self):
+        # Regression: "what's my tax in Texas" has no amount, so it hits the
+        # clarify branch and asks for income -- but "Texas" was still real
+        # information the user gave, and used to be silently dropped there
+        # since only pending_intent/suggested_intent were persisted before
+        # the clarify return, not state. The next message ("150k") should
+        # still land on TX, not the CA default.
+        clarify = _run("chat", {"message": "what's my tax in Texas"})
+        assert clarify["data"]["intent"] == "clarify"
+        second = _run("chat", {"message": "150k"})
+        assert second["data"]["extracted"]["state"] == "TX"
+        assert " TX" in second["data"]["reply"]
+
+    def test_unstated_state_is_disclosed_not_silently_assumed(self):
+        # Regression: chat() used to default to CA with no indication this
+        # was a guess rather than something the user said.
+        response = _run("chat", {"message": "what's my tax on 150k"})
+        assert "assuming CA" in response["data"]["reply"]
+
+    def test_explicitly_stated_state_is_not_flagged_as_an_assumption(self):
+        response = _run("chat", {"message": "what's my tax on 150k in NY"})
+        assert "assuming" not in response["data"]["reply"].lower()
+
     def test_reset_clears_remembered_context(self):
         _run("chat", {"message": "I make 150k"})
         response = json.loads(bridge.dispatch("chat_reset", "{}"))
