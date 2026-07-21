@@ -300,21 +300,75 @@ def _extract_filing_status(text: str) -> str:
 
 
 _STATE_NAMES = {
+    "alabama": "AL",
+    "alaska": "AK",
+    "arizona": "AZ",
+    "arkansas": "AR",
     "california": "CA",
-    "new york": "NY",
-    "texas": "TX",
+    "colorado": "CO",
+    "connecticut": "CT",
+    "delaware": "DE",
+    "district of columbia": "DC",
     "florida": "FL",
-    "washington": "WA",
-    "massachusetts": "MA",
+    "georgia": "GA",
+    "hawaii": "HI",
+    "idaho": "ID",
     "illinois": "IL",
+    "indiana": "IN",
+    "iowa": "IA",
+    "kansas": "KS",
+    "kentucky": "KY",
+    "louisiana": "LA",
+    "maine": "ME",
+    "maryland": "MD",
+    "massachusetts": "MA",
+    "michigan": "MI",
+    "minnesota": "MN",
+    "mississippi": "MS",
+    "missouri": "MO",
+    "montana": "MT",
+    "nebraska": "NE",
+    "nevada": "NV",
+    "new hampshire": "NH",
+    "new jersey": "NJ",
+    "new mexico": "NM",
+    "new york": "NY",
+    "north carolina": "NC",
+    "north dakota": "ND",
+    "ohio": "OH",
+    "oklahoma": "OK",
+    "oregon": "OR",
+    "pennsylvania": "PA",
+    "rhode island": "RI",
+    "south carolina": "SC",
+    "south dakota": "SD",
+    "tennessee": "TN",
+    "texas": "TX",
+    "utah": "UT",
+    "vermont": "VT",
+    "west virginia": "WV",
+    "virginia": "VA",
+    "washington": "WA",
+    "wisconsin": "WI",
+    "wyoming": "WY",
 }
 
 
 def _extract_state(text: str) -> str:
+    """Return a two-letter state code for the first/longest state name found in text.
+
+    Uses longest-match so "west virginia" wins over the "virginia" substring,
+    and the two-letter abbreviation pattern ("in TX") serves as a fallback.
+    """
     lowered = text.lower()
+    best_code = None
+    best_len = 0
     for name, code in _STATE_NAMES.items():
-        if name in lowered:
-            return code
+        if name in lowered and len(name) > best_len:
+            best_code = code
+            best_len = len(name)
+    if best_code:
+        return best_code
     import re
 
     match = re.search(r"\bin ([A-Z]{2})\b", text)
@@ -324,6 +378,30 @@ def _extract_state(text: str) -> str:
 def _has_any(text: str, *keywords: str) -> bool:
     lowered = text.lower()
     return any(kw in lowered for kw in keywords)
+
+
+def _extract_age(text: str) -> int | None:
+    """Pull the speaker's age from free text using common phrasings.
+
+    Recognises "I'm 55", "I am 62", "age 45", "55 years old", "turning 60".
+    Only accepts values 18–85 to avoid false-positives on unrelated two-digit
+    numbers (form numbers, percentages, etc.).
+    """
+    import re
+
+    patterns = [
+        r"\bi(?:'m| am)\s+(\d{2})\b",  # "I'm 55" / "I am 55"
+        r"\bage\s+(\d{2})\b",  # "age 55"
+        r"\b(\d{2})\s+years?\s+old\b",  # "55 years old"
+        r"\bturning\s+(\d{2})\b",  # "turning 60"
+    ]
+    for pat in patterns:
+        m = re.search(pat, text.lower())
+        if m:
+            age = int(m.group(1))
+            if 18 <= age <= 85:
+                return age
+    return None
 
 
 def _mentions_filing_status(text: str) -> bool:
@@ -358,6 +436,7 @@ _conversation_context: dict = {
     "state": None,
     "pending_intent": None,
     "suggested_intent": None,
+    "age": None,  # Extracted from free text; enables age-aware advice (e.g. catch-up limits)
 }
 
 # After answering one topic, a natural next question often follows the same
@@ -801,6 +880,324 @@ _FACTS = [
             "months they weren't eligible for an employer-subsidized plan."
         ),
     },
+    {
+        "keywords": ("roth conversion", "convert to roth", "roth ira conversion"),
+        "answer": (
+            "A Roth IRA conversion moves money from a traditional (pre-tax) IRA to a "
+            "Roth IRA. The converted amount is included in ordinary income the year "
+            "you convert — there's no income limit on conversions even though direct "
+            "Roth contributions have income limits. The 5-year rule means converted "
+            "funds must stay in the Roth at least 5 years before being withdrawn "
+            "penalty-free if you're under 59½. Converting in a low-income year "
+            "minimizes the tax hit."
+        ),
+    },
+    {
+        "keywords": ("s-corp tax", "s corporation tax", "s corp election", "s-corp election"),
+        "answer": (
+            "An S-corp election lets owner-employees split income into a "
+            "'reasonable salary' (subject to payroll/SE tax) and distributions "
+            "(not subject to self-employment tax). For a sole proprietor netting "
+            "$80k+/year the payroll-tax savings can reach $5k–$15k/year — but "
+            "requires running payroll, filing Form 1120-S, and paying state fees. "
+            "The IRS requires the salary to be 'reasonable' for the work performed; "
+            "too low a salary is an audit red flag."
+        ),
+    },
+    {
+        "keywords": ("sep ira vs solo 401k", "sep-ira vs solo 401", "sep vs solo"),
+        "answer": (
+            "SEP-IRA (2024 limit: 25% of net SE income, max $69,000): very easy to "
+            "open, no annual filing, no catch-up. Solo 401(k): same $69,000 total "
+            "cap but also allows a $23,000 employee elective deferral (plus $7,500 "
+            "catch-up at 50+) on top of the employer contribution, making it better "
+            "for lower-income self-employed people who want to shelter more. Solo "
+            "401(k) also allows Roth contributions and participant loans; more "
+            "administrative overhead and requires Form 5500-EZ above $250k in assets."
+        ),
+    },
+    {
+        "keywords": ("sep ira limit", "sep-ira limit", "sep ira contribution"),
+        "answer": (
+            "2024 SEP-IRA contribution limit: the lesser of 25% of net "
+            "self-employment income (after the SE tax deduction) or $69,000. "
+            "Contributions are made entirely by the employer/self-employed owner "
+            "and are immediately 100% vested. There are no catch-up contributions "
+            "for a SEP-IRA."
+        ),
+    },
+    {
+        "keywords": ("real estate professional", "real estate professional status"),
+        "answer": (
+            "To qualify as a 'real estate professional' and deduct rental losses "
+            "against ordinary income without limit: you must spend more than 750 "
+            "hours/year in real property trades or businesses AND real estate must "
+            "be more than half of your total personal services for the year. "
+            "Without this status, rental losses are passive and can only offset "
+            "passive income — except a $25,000 allowance for active participants "
+            "with AGI ≤$100,000 (phasing out at $150,000)."
+        ),
+    },
+    {
+        "keywords": ("passive activity", "passive loss", "passive income rules"),
+        "answer": (
+            "Passive activity losses (from rental properties and businesses you don't "
+            "materially participate in) can only offset passive income — not wages, "
+            "salary, or portfolio income. Suspended losses accumulate and are fully "
+            "released (deductible against any income) when you dispose of the "
+            "passive activity in a taxable transaction. Material participation "
+            "requires meeting one of seven tests, the most common being 500+ "
+            "hours/year in the activity."
+        ),
+    },
+    {
+        "keywords": ("depreciation recapture", "section 1250", "unrecaptured 1250 gain"),
+        "answer": (
+            "When you sell depreciated real property, the portion of gain equal to "
+            "prior depreciation deductions (§1250 gain) is taxed at a maximum "
+            "25% rate ('unrecaptured §1250 gain') — not the standard 0%/15%/20% "
+            "long-term capital gains rate. Personal property (equipment, vehicles) "
+            "depreciation is recaptured at ordinary income rates under §1245."
+        ),
+    },
+    {
+        "keywords": ("qualified opportunity zone", "opportunity zone investment", "qoz fund"),
+        "answer": (
+            "Investing capital gains in a Qualified Opportunity Zone (QOZ) fund "
+            "within 180 days defers those original gains until December 31, 2026 "
+            "(or earlier sale of the QOZ investment). More importantly, any "
+            "appreciation in the QOZ fund itself is completely excluded from tax "
+            "if you hold the investment at least 10 years. Useful for large "
+            "capital gains looking for deferral and potential elimination."
+        ),
+    },
+    {
+        "keywords": (
+            "solar tax credit",
+            "solar credit",
+            "residential clean energy credit",
+            "clean energy credit",
+        ),
+        "answer": (
+            "The Residential Clean Energy Credit (Inflation Reduction Act): 30% of "
+            "the cost of solar panels, battery storage (stand-alone after 2022), "
+            "geothermal heat pumps, small wind turbines, and fuel cells installed "
+            "at your home — through 2032 (steps to 26% in 2033, 22% in 2034). "
+            "No dollar cap. The credit can carry forward if it exceeds your tax "
+            "liability. A separate Energy Efficient Home Improvement Credit covers "
+            "insulation, windows, heat pumps, etc. (up to $3,200/year)."
+        ),
+    },
+    {
+        "keywords": (
+            "ev tax credit",
+            "electric vehicle credit",
+            "clean vehicle credit",
+            "electric car credit",
+        ),
+        "answer": (
+            "New EVs (2024): up to $7,500 federal credit — must meet battery "
+            "mineral/assembly requirements. Income limits: $150,000 AGI (single), "
+            "$225,000 (HOH), $300,000 (joint). The credit is nonrefundable for "
+            "purchases; a 'transfer election' lets buyers apply it at point of "
+            "sale like a discount. Used EVs: up to $4,000 (30% of sale price, "
+            "max $25,000 vehicle price). Income limits: $75,000/$112,500/$150,000."
+        ),
+    },
+    {
+        "keywords": (
+            "premium tax credit",
+            "marketplace health insurance",
+            "aca subsidy",
+            "health insurance marketplace",
+        ),
+        "answer": (
+            "The ACA Premium Tax Credit subsidizes marketplace health insurance. "
+            "Post-American Rescue Plan (extended through 2025): available to "
+            "households above 400% of the Federal Poverty Level too — no more "
+            "income 'cliff.' The credit is reconciled on Form 8962; if advance "
+            "payments exceeded your actual credit, you repay the difference "
+            "(with a cap for lower incomes)."
+        ),
+    },
+    {
+        "keywords": ("qsbs", "qualified small business stock", "section 1202 exclusion"),
+        "answer": (
+            "IRC §1202 lets you exclude up to 100% of the gain on Qualified Small "
+            "Business Stock (QSBS) held more than 5 years — up to the greater of "
+            "$10 million or 10× your adjusted cost basis per company, per taxpayer. "
+            "Requirements: original-issue stock in a domestic C-corp; aggregate "
+            "gross assets ≤$50 million at issuance; active business in an eligible "
+            "trade (excludes finance, law, consulting, etc.). State exclusions vary."
+        ),
+    },
+    {
+        "keywords": (
+            "inherited ira",
+            "stretch ira",
+            "10 year rule ira",
+            "inherited retirement account",
+        ),
+        "answer": (
+            "The SECURE Act (2019) eliminated the 'stretch IRA' for most non-spouse "
+            "beneficiaries who inherit after 2019: the entire inherited IRA must be "
+            "distributed within 10 years. Exceptions (can still stretch): surviving "
+            "spouses, minor children (until majority), disabled/chronically ill "
+            "beneficiaries, and beneficiaries within 10 years of the decedent's age. "
+            "IRS proposed regulations (2024) added nuance for accounts where the "
+            "owner had already started RMDs."
+        ),
+    },
+    {
+        "keywords": ("required minimum distribution", "rmd rules", "when do rmds start"),
+        "answer": (
+            "Required Minimum Distributions (RMDs) from traditional IRAs and most "
+            "employer plans begin at age 73 (SECURE Act 2.0, effective 2023; rising "
+            "to 75 in 2033). Roth IRAs have no RMDs during the owner's lifetime. "
+            "Missing an RMD triggers a 25% excise tax, reduced to 10% if corrected "
+            "within a 2-year correction window. A Qualified Charitable Distribution "
+            "(QCD) counts toward RMD requirements and is excluded from income."
+        ),
+    },
+    {
+        "keywords": (
+            "iso stock option",
+            "incentive stock option",
+            "nqso",
+            "nonqualified stock option",
+        ),
+        "answer": (
+            "ISOs (incentive stock options): no ordinary income at exercise, but "
+            "the spread (FMV minus strike) is an AMT preference item. Hold ≥1 year "
+            "from exercise AND ≥2 years from grant → LTCG rates on the full gain. "
+            "NQSOs (nonqualified): ordinary income at exercise equal to the spread "
+            "(reported on W-2 or 1099-NEC), then LTCG or short-term on later "
+            "appreciation. Company gets a deduction for NQSOs; not for ISOs."
+        ),
+    },
+    {
+        "keywords": ("crypto tax", "bitcoin tax", "cryptocurrency tax", "nft tax"),
+        "answer": (
+            "The IRS treats crypto as property. Every sale, trade, or spend is a "
+            "taxable event: gains held ≤12 months are short-term (ordinary income "
+            "rates); held >12 months qualify for LTCG rates. Mining and staking "
+            "income is ordinary income at FMV when received. The wash sale rule "
+            "does NOT currently apply to crypto (unlike stocks) — though proposed "
+            "legislation may change this. All transactions must be reported on "
+            "Form 8949; the 1040 asks a virtual-currency question regardless."
+        ),
+    },
+    {
+        "keywords": ("alimony tax", "divorce alimony", "spousal support tax", "alimony deduction"),
+        "answer": (
+            "For divorce/separation agreements executed after December 31, 2018: "
+            "alimony payments are NOT deductible by the payer and NOT includible "
+            "in the recipient's income (TCJA change). Pre-2019 agreements are "
+            "grandfathered under the old rules (deductible/includible) unless "
+            "the parties specifically modify the agreement to adopt the new rules."
+        ),
+    },
+    {
+        "keywords": (
+            "net unrealized appreciation",
+            "nua stock",
+            "employer stock 401k distribution",
+        ),
+        "answer": (
+            "Net Unrealized Appreciation (NUA): if you have highly appreciated "
+            "employer stock in your 401(k) and take a qualifying lump-sum "
+            "distribution, you pay ordinary income tax only on your cost basis "
+            "(what the employer paid in), not the full value. The built-in gain "
+            "(NUA) is taxed at LTCG rates when you eventually sell the shares — "
+            "potentially much lower than the ordinary rates you'd pay on a normal "
+            "401(k) distribution or rollover."
+        ),
+    },
+    {
+        "keywords": ("foreign tax credit", "form 1116", "double taxation foreign"),
+        "answer": (
+            "If you pay income tax to a foreign country on income also taxed by "
+            "the U.S., you can claim a foreign tax credit (Form 1116) to offset "
+            "U.S. tax dollar-for-dollar, subject to a limitation based on your "
+            "foreign-source income ratio. Alternatively you can deduct foreign "
+            "taxes as an itemized deduction — generally less valuable than the "
+            "credit. The foreign tax credit and the Foreign Earned Income "
+            "Exclusion (FEIE) can't apply to the same income."
+        ),
+    },
+    {
+        "keywords": ("qualified charitable distribution", "qcd ira", "ira to charity"),
+        "answer": (
+            "A Qualified Charitable Distribution (QCD) lets IRA owners age 70½+ "
+            "donate up to $105,000 (2024, indexed) directly from their IRA to a "
+            "qualified charity. The distribution is excluded from income entirely "
+            "(unlike a normal withdrawal + deduction, which still inflates AGI). "
+            "QCDs count dollar-for-dollar toward your RMD for the year — making "
+            "them the most tax-efficient way to give for anyone with an IRA who "
+            "doesn't need all of their RMD."
+        ),
+    },
+    {
+        "keywords": ("fsa", "flexible spending account", "health fsa", "dependent care fsa"),
+        "answer": (
+            "Health FSA (2024): contribute up to $3,200 pre-tax through payroll; "
+            "use-it-or-lose-it with up to a $640 rollover option if the plan allows. "
+            "Dependent Care FSA: up to $5,000 ($2,500 if married filing separately) "
+            "pre-tax for qualifying childcare or adult dependent care while you "
+            "work. Unlike an HSA, FSAs don't accumulate or invest long-term. A "
+            "health FSA requires enrollment in a qualifying health plan (no HDHP "
+            "requirement); a dependent care FSA is separate."
+        ),
+    },
+    {
+        "keywords": (
+            "rental property depreciation",
+            "27.5 year depreciation",
+            "depreciate rental property",
+        ),
+        "answer": (
+            "Residential rental property is depreciated over 27.5 years using "
+            "straight-line MACRS; commercial real property over 39 years. Land is "
+            "never depreciated. A cost segregation study can reclassify interior "
+            "components, land improvements, and personal property into 5-, 7-, or "
+            "15-year property eligible for much faster depreciation (and bonus "
+            "depreciation). This is often the single largest tax deferral "
+            "opportunity for real estate investors."
+        ),
+    },
+    {
+        "keywords": (
+            "deferred compensation 409a",
+            "nonqualified deferred compensation",
+            "409a rules",
+        ),
+        "answer": (
+            "Nonqualified deferred compensation (NQDC) governed by IRC §409A must "
+            "be elected before the year the compensation is earned (or within 30 "
+            "days for new participants). Distributions must follow six permissible "
+            "triggers: separation from service, disability, death, change in control, "
+            "unforeseeable emergency, or a fixed date. Violations cause immediate "
+            "taxation of the entire deferred amount plus a 20% additional tax and "
+            "interest — one of the harshest penalty structures in the tax code."
+        ),
+    },
+    {
+        "keywords": (
+            "above the line deduction",
+            "above-the-line deduction",
+            "adjustments to income",
+        ),
+        "answer": (
+            "Above-the-line deductions reduce AGI without itemizing (taken on "
+            "Schedule 1). Key 2024 above-the-line deductions: traditional IRA "
+            "contributions (if deductible), student loan interest ($2,500 cap), "
+            "HSA contributions ($4,150/$8,300), self-employed health insurance "
+            "premiums, half of self-employment tax, SEP/SIMPLE/Solo 401(k) "
+            "contributions, educator expenses ($300), and alimony paid under "
+            "pre-2019 agreements. Lowering AGI also expands eligibility for "
+            "credits and deductions that phase out with income."
+        ),
+    },
 ]
 
 
@@ -821,21 +1218,74 @@ def _match_fact(text: str) -> str | None:
 
 
 _INTENT_KEYWORDS = {
-    "amt_calculate": ("amt", "alternative minimum tax"),
-    "quarterly_estimate": ("quarterly", "estimated payment", "estimated tax payment"),
-    "compliance_check": ("compliance", "fbar", "fatca", "foreign account", "1099 filing"),
+    "amt_calculate": (
+        "amt",
+        "alternative minimum tax",
+        "iso exercise",
+        "incentive stock option",
+        "form 6251",
+    ),
+    "quarterly_estimate": (
+        "quarterly",
+        "estimated payment",
+        "estimated tax payment",
+        "safe harbor",
+        "underpayment",
+        "quarterly estimated",
+    ),
+    "compliance_check": (
+        "compliance",
+        "fbar",
+        "fatca",
+        "foreign account",
+        "1099 filing",
+        "crypto wallet",
+        "virtual currency report",
+    ),
     "document_analyze": ("contract", "clause", "document", "agreement", "indemnif"),
     "filing_status_tree": ("filing status", "should i file", "file as single", "file jointly"),
-    "deduction_optimize": ("deduction", "itemize", "itemized", "standard deduction"),
-    "risk_assess": ("audit risk", "audit probability", "get audited", "irs audit"),
+    "deduction_optimize": (
+        "deduction",
+        "itemize",
+        "itemized",
+        "standard deduction",
+        "write off",
+        "write-off",
+        "deductible expense",
+        "mortgage interest deduction",
+    ),
+    "risk_assess": (
+        "audit risk",
+        "audit probability",
+        "get audited",
+        "irs audit",
+        "audit trigger",
+        "red flag irs",
+        "irs red flag",
+        "noticed by irs",
+    ),
     "algorithm_optimize": (
         "save on tax",
         "tax strategy",
         "tax strategies",
         "reduce my tax",
+        "lower my tax",
+        "minimize my tax",
+        "tax planning",
+        "tax savings",
+        "tax shelter",
         "optimize",
     ),
-    "tax_calculate": ("tax", "calculate", "how much tax", "owe"),
+    "tax_calculate": (
+        "tax",
+        "calculate",
+        "how much tax",
+        "owe",
+        "income tax",
+        "federal tax",
+        "effective tax rate",
+        "tax owed",
+    ),
     "platform_analyze": ("full analysis", "everything", "complete case", "full case", "overall"),
 }
 
@@ -915,6 +1365,7 @@ def _compute_intent(
     state: str,
     self_employed: bool,
     business_owner: bool,
+    age: int | None = None,
 ) -> tuple[dict, str]:
     """Run one known intent's engine and build its reply. Factored out of
     chat() so a compound question ("should I itemize and am I at audit
@@ -949,17 +1400,31 @@ def _compute_intent(
             f"(AMT owed: ${result['amt_owed']:,.2f})."
         )
     elif intent == "quarterly_estimate":
+        # Compute actual estimated federal + SE tax rather than assuming 24%.
+        tax_result = tax_calculate(
+            {
+                "gross_income": amount,
+                "filing_status": filing_status,
+                "state_code": state,
+                "w2_wages": 0.0 if self_employed else amount,
+                "self_employment_income": amount if self_employed else 0.0,
+            }
+        )
+        expected_annual_tax = tax_result["total_tax"]
         result = quarterly_estimate(
             {
-                "expected_total_tax": amount * 0.24,
-                "prior_year_tax": amount * 0.24,
+                "expected_total_tax": expected_annual_tax,
+                "prior_year_tax": expected_annual_tax,
                 "prior_year_agi": amount,
                 "filing_status": filing_status,
             }
         )
         reply = (
-            f"Based on an estimated ${amount * 0.24:,.0f} annual tax, your quarterly "
-            f"payment should be about ${result['total_required'] / 4:,.2f}."
+            f"Based on an estimated ${expected_annual_tax:,.0f} annual tax "
+            f"({tax_result['effective_total_rate']:.1%} effective rate), "
+            f"each quarterly payment should be about ${result['total_required'] / 4:,.2f}. "
+            f"Safe-harbor amount: ${result['safe_harbor_amount']:,.2f}/year "
+            f"(${result['safe_harbor_amount'] / 4:,.2f}/quarter)."
         )
     elif intent == "compliance_check":
         result = compliance_check(
@@ -1006,7 +1471,13 @@ def _compute_intent(
         )
         reply = (
             f"On ${amount:,.0f} AGI, {result['recommended_method']} deduction is better "
-            f"(${result['recommended_deduction']:,.0f})."
+            f"(${result['recommended_deduction']:,.0f}). "
+            f"That saves you roughly ${result['tax_savings']:,.0f} compared to the other method."
+            if result.get("tax_savings")
+            else (
+                f"On ${amount:,.0f} AGI, {result['recommended_method']} deduction is better "
+                f"(${result['recommended_deduction']:,.0f})."
+            )
         )
     elif intent == "risk_assess":
         result = risk_assess(
@@ -1014,33 +1485,47 @@ def _compute_intent(
                 "agi": amount,
                 "has_schedule_c": self_employed,
                 "schedule_c_income": amount if self_employed else 0.0,
-                "has_crypto_transactions": _has_any(message, "crypto", "bitcoin"),
+                "has_crypto_transactions": _has_any(
+                    message, "crypto", "bitcoin", "ethereum", "nft"
+                ),
                 "claimed_home_office": _has_any(message, "home office"),
             }
         )
+        factor_count = len(result.get("risk_factors", []))
+        factor_note = (
+            f" {factor_count} risk factor{'s' if factor_count != 1 else ''} detected."
+            if factor_count
+            else ""
+        )
         reply = (
             f"Your audit risk rating is {result['audit_risk_rating']} "
-            f"(estimated probability {result['estimated_audit_probability']:.2%})."
+            f"(estimated probability {result['estimated_audit_probability']:.2%}).{factor_note}"
         )
     elif intent == "algorithm_optimize":
+        effective_age = age if age is not None else 40
         result = algorithm_optimize(
             {
                 "gross_income": amount,
                 "current_tax": amount * 0.24,
                 "marginal_rate": 0.24,
                 "filing_status": filing_status,
+                "age": effective_age,
                 "has_401k_access": not self_employed,
                 "self_employment_income": amount if self_employed else 0.0,
                 "is_business_owner": business_owner,
                 "expected_state_tax": amount * 0.05 if business_owner else 0.0,
             }
         )
-        top = result["strategies"][0]["title"] if result["strategies"] else None
-        reply = (
-            f"Top strategy: {top}. Total potential savings: ${result['total_savings']:,.2f}."
-            if top
-            else "No specific optimization strategies applied for this scenario."
-        )
+        strategies = result.get("strategies", [])
+        top_titles = [s["title"] for s in strategies[:3]] if strategies else []
+        if top_titles:
+            age_note = " (catch-up limits applied)" if effective_age >= 50 else ""
+            reply = (
+                f"Total potential savings: ${result['total_savings']:,.2f}{age_note}. "
+                f"Top strategies: {', '.join(top_titles)}."
+            )
+        else:
+            reply = "No specific optimization strategies applied for this scenario."
     else:
         # A genuine "give me everything" request (matched the platform_analyze
         # keywords, e.g. "full analysis") — this is the one case worth
@@ -1105,6 +1590,9 @@ def chat(payload: dict) -> dict:
         if _mentions_state(message)
         else (_conversation_context["state"] or "CA")
     )
+    extracted_age = _extract_age(message)
+    age = extracted_age if extracted_age is not None else _conversation_context["age"]
+
     self_employed = _has_any(
         message, "self employ", "self-employ", "1099", "schedule c", "freelance"
     )
@@ -1156,6 +1644,7 @@ def chat(payload: dict) -> dict:
                 "amount": None,
                 "filing_status": filing_status,
                 "state": state,
+                "age": age,
                 "self_employed": self_employed,
                 "business_owner": business_owner,
             },
@@ -1171,6 +1660,7 @@ def chat(payload: dict) -> dict:
     _conversation_context["amount"] = amount
     _conversation_context["filing_status"] = filing_status
     _conversation_context["state"] = state
+    _conversation_context["age"] = age
     _conversation_context["pending_intent"] = None
 
     if not intents:
@@ -1196,6 +1686,7 @@ def chat(payload: dict) -> dict:
                 "amount": amount,
                 "filing_status": filing_status,
                 "state": state,
+                "age": age,
                 "self_employed": self_employed,
                 "business_owner": business_owner,
             },
@@ -1207,7 +1698,7 @@ def chat(payload: dict) -> dict:
         (
             i,
             *_compute_intent(
-                i, message, amount, filing_status, state, self_employed, business_owner
+                i, message, amount, filing_status, state, self_employed, business_owner, age
             ),
         )
         for i in intents
@@ -1244,6 +1735,7 @@ def chat(payload: dict) -> dict:
             "amount": amount,
             "filing_status": filing_status,
             "state": state,
+            "age": age,
             "self_employed": self_employed,
             "business_owner": business_owner,
         },
@@ -1379,6 +1871,40 @@ def session_insights(payload: dict) -> dict:
         insights.append(
             "You mentioned owning a business but haven't run a compliance check yet — "
             "worth checking 1099 filing requirements and estimated-payment adequacy."
+        )
+
+    # Crypto mentioned without ever running a compliance check.
+    has_crypto_in_history = any("crypto" in str(e) or "bitcoin" in str(e) for e in _session_history)
+    if has_crypto_in_history and not any(
+        e["intent"] == "compliance_check" for e in _session_history
+    ):
+        insights.append(
+            "Crypto transactions were mentioned but you haven't run a compliance check — "
+            "every crypto sale is a taxable event the IRS expects to see reported on Form 8949."
+        )
+
+    # Age ≥ 50 was captured but no retirement strategy check was done.
+    saved_age = _conversation_context.get("age")
+    if saved_age is not None and saved_age >= 50:
+        checked_optimize = any(e["intent"] == "algorithm_optimize" for e in _session_history)
+        if not checked_optimize:
+            insights.append(
+                f"You mentioned being {saved_age} years old — at 50+ you're eligible for "
+                "catch-up contributions ($7,500 extra in a 401k, $1,000 extra in an IRA). "
+                "Run a tax-saving strategies check to see what that means for your situation."
+            )
+
+    # High income (>$200k) without any NIIT awareness check (i.e. no tax calculation
+    # or optimization run that would surface this).
+    high_income_entries = [e for e in _session_history if e["amount"] and e["amount"] > 200_000]
+    if high_income_entries and not any(
+        e["intent"] in ("tax_calculate", "algorithm_optimize", "platform_analyze")
+        for e in _session_history
+    ):
+        insights.append(
+            "Your income is above $200,000 — the 3.8% Net Investment Income Tax (NIIT) "
+            "can apply to interest, dividends, and capital gains at that level. "
+            "Run a tax calculation to see your full picture including NIIT."
         )
 
     # Cross-referencing the individual signals above into one summary level
