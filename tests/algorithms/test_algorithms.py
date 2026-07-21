@@ -322,6 +322,46 @@ class TestTaxOptimizer:
                     >= result.strategies[i + 1].estimated_savings
                 )
 
+    def test_no_charitable_strategy_without_intent(self):
+        """No charitable strategy should appear when charitable_intent is zero."""
+        optimizer = TaxOptimizer()
+        result = optimizer.optimize(
+            gross_income=100_000,
+            current_tax=22_000,
+            marginal_rate=0.22,
+            charitable_intent=0,
+        )
+        ids = [s.strategy_id for s in result.strategies]
+        assert "daf" not in ids
+
+    def test_no_daf_strategy_below_threshold(self):
+        """DAF strategy should not appear for charitable intent at/below $5,000."""
+        optimizer = TaxOptimizer()
+        result = optimizer.optimize(
+            gross_income=100_000,
+            current_tax=22_000,
+            marginal_rate=0.22,
+            charitable_intent=5_000,
+        )
+        ids = [s.strategy_id for s in result.strategies]
+        assert "daf" not in ids
+
+    def test_daf_strategy_above_threshold(self):
+        """DAF strategy should appear once charitable intent exceeds $5,000."""
+        optimizer = TaxOptimizer()
+        result = optimizer.optimize(
+            gross_income=150_000,
+            current_tax=30_000,
+            marginal_rate=0.24,
+            charitable_intent=10_000,
+        )
+        ids = [s.strategy_id for s in result.strategies]
+        assert "daf" in ids
+        strategy = next(s for s in result.strategies if s.strategy_id == "daf")
+        # savings = charitable_intent * marginal_rate = 10,000 * 0.24
+        assert strategy.estimated_savings == 2_400.0
+        assert "IRC § 170(f)(18)" in strategy.citations
+
 
 # -----------------------------------------------------------------------
 # RiskAssessor tests
