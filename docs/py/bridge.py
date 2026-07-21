@@ -487,6 +487,64 @@ def _is_affirmative(text: str) -> bool:
     return text.strip().lower().rstrip(".!?") in _AFFIRMATIVE_PHRASES
 
 
+def _contains_word(lowered_text: str, word: str) -> bool:
+    """Whole-word match (both boundaries) — unlike _contains_keyword, this
+    does NOT catch inflected forms, which matters here: a leading-boundary-
+    only match would let "hi" fire inside "history" or "yo" fire inside
+    "yodel", which _contains_keyword's prefix matching is fine with for
+    tax terms but wrong for short greeting words."""
+    import re
+
+    return re.search(r"\b" + re.escape(word.strip()) + r"\b", lowered_text) is not None
+
+
+_GREETING_WORDS = ("hi", "hello", "hey", "yo", "howdy", "greetings")
+_HOW_ARE_YOU_PHRASES = (
+    "how are you",
+    "how're you",
+    "how you doing",
+    "how are things",
+    "how's it going",
+    "hows it going",
+    "what's up",
+    "whats up",
+)
+_THANKS_PHRASES = ("thanks", "thank you", "thx", "ty", "appreciate it", "appreciated")
+_FAREWELL_PHRASES = ("bye", "goodbye", "see ya", "see you", "take care", "farewell")
+
+
+def _match_small_talk(text: str) -> str | None:
+    """Handle plain conversational openers/closers — greetings, "how are
+    you", thanks, goodbyes — that carry no tax topic of their own, so they
+    get a natural reply instead of being forced through the "I need an
+    income figure" or "I'm not sure what you're asking" fallbacks.
+
+    Only ever called from chat() when nothing else in the message matched
+    an intent, a fact, or an amount — a message that also asks a real
+    question ("hi, what's the SALT cap") is handled by the real routing
+    before this is ever reached, so this can't hijack a genuine question
+    just because it happens to start with a pleasantry."""
+    lowered = text.strip().lower()
+
+    if any(phrase in lowered for phrase in _HOW_ARE_YOU_PHRASES):
+        return (
+            "Doing fine, thanks for asking — I'm a rule-based tax/legal calculator, "
+            "so no feelings to report, but I'm ready when you are. What's your income, "
+            "or what's on your mind?"
+        )
+    if any(phrase in lowered for phrase in _THANKS_PHRASES):
+        return "Anytime. Let me know if anything else comes up."
+    if any(phrase in lowered for phrase in _FAREWELL_PHRASES):
+        return "Take care! Come back anytime you've got a tax question."
+    if any(_contains_word(lowered, w) for w in _GREETING_WORDS):
+        return (
+            "Hey! I'm Jit — I can run your federal/state tax numbers, check "
+            "deductions, AMT, audit risk, and more. What's your income, or "
+            "what's on your mind?"
+        )
+    return None
+
+
 # Intents where a dollar amount is essential to computing anything real —
 # rather than silently guessing $120k when none is given or remembered,
 # chat() asks for it instead.
@@ -1458,11 +1516,33 @@ def chat(payload: dict) -> dict:
         else:
             routing_reason = "unmatched"
 
+    if routing_reason == "unmatched" and amount is None:
+        # Nothing matched and there's no number to ask about yet — check
+        # whether this is plain conversational filler ("hi", "thanks",
+        # "how are you") before falling through to the income-needed
+        # prompt below, which used to fire even for a bare "hello".
+        small_talk_reply = _match_small_talk(message)
+        if small_talk_reply is not None:
+            _conversation_context["suggested_intent"] = None
+            return {
+                "intent": "small_talk",
+                "routing_reason": "small_talk",
+                "extracted": {
+                    "amount": None,
+                    "filing_status": filing_status,
+                    "state": state,
+                    "self_employed": self_employed,
+                    "business_owner": business_owner,
+                },
+                "reply": small_talk_reply,
+                "result": {},
+            }
+
     # An unmatched message still defaults to platform_analyze for the
     # purposes of the amount-needed check below, exactly like a single
-    # unmatched intent always has — that's what makes "hello there" (no
-    # topic, no amount) prompt for income instead of skipping straight to
-    # "I'm not sure what you're asking."
+    # unmatched intent always has — that's what makes a real unmatched
+    # question with no topic and no amount prompt for income instead of
+    # skipping straight to "I'm not sure what you're asking."
     gate_intents = intents or ["platform_analyze"]
 
     if any(i in _NEEDS_AMOUNT for i in gate_intents) and amount is None:

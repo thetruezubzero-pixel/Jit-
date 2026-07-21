@@ -341,10 +341,11 @@ class TestChat:
         assert response["data"]["intent"] == "document_analyze"
 
     def test_no_keyword_or_number_asks_for_income_instead_of_guessing(self):
-        # No topic keyword and no income mentioned (or remembered, thanks to
-        # the reset_conversation fixture) — chat() should ask rather than
-        # silently defaulting to a made-up income figure.
-        response = _run("chat", {"message": "hello there"})
+        # No topic keyword, no greeting, and no income mentioned (or
+        # remembered, thanks to the reset_conversation fixture) — chat()
+        # should ask rather than silently defaulting to a made-up income
+        # figure.
+        response = _run("chat", {"message": "what should I do about this situation"})
         data = response["data"]
         assert data["intent"] == "clarify"
         assert data["extracted"]["amount"] is None
@@ -404,6 +405,63 @@ class TestChat:
         assert data["matched"] is True
         assert "total_tax" in data["result"]["accounting"]
         assert "Full case:" in data["reply"]
+
+
+class TestSmallTalk:
+    # Regression coverage: a bare greeting/thanks/goodbye used to be forced
+    # through the "I need an income figure" clarify prompt (or, once an
+    # amount was already remembered from earlier in the conversation, the
+    # "I'm not sure what you're asking" fallback) instead of getting a
+    # normal conversational reply.
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_greeting_gets_a_friendly_reply_not_a_clarify_prompt(self):
+        response = _run("chat", {"message": "hi"})
+        data = response["data"]
+        assert data["intent"] == "small_talk"
+        assert "income figure" not in data["reply"]
+
+    def test_how_are_you_gets_a_friendly_reply(self):
+        response = _run("chat", {"message": "hey, how are you?"})
+        data = response["data"]
+        assert data["intent"] == "small_talk"
+
+    def test_thanks_gets_acknowledged(self):
+        response = _run("chat", {"message": "thanks!"})
+        data = response["data"]
+        assert data["intent"] == "small_talk"
+        assert "anytime" in data["reply"].lower()
+
+    def test_farewell_gets_acknowledged(self):
+        response = _run("chat", {"message": "ok bye"})
+        data = response["data"]
+        assert data["intent"] == "small_talk"
+
+    def test_greeting_word_does_not_false_positive_inside_a_real_word(self):
+        # "hi" is a substring of "history" -- must not fire as a greeting
+        # via prefix matching the way _contains_keyword would for tax terms.
+        response = _run("chat", {"message": "what is the history of the income tax"})
+        data = response["data"]
+        assert data["intent"] != "small_talk"
+
+    def test_greeting_combined_with_a_real_question_is_not_hijacked(self):
+        # A greeting that ALSO asks a real, keyword-matched question should
+        # be answered as that question, not swallowed by small talk.
+        response = _run("chat", {"message": "hi, what's the SALT cap"})
+        data = response["data"]
+        assert data["intent"] == "fact"
+
+    def test_small_talk_does_not_set_a_pending_intent(self):
+        # A greeting shouldn't leave the conversation thinking it's waiting
+        # for an answer to a question it never actually asked.
+        _run("chat", {"message": "hi"})
+        response = _run("chat", {"message": "how does this work"})
+        data = response["data"]
+        assert data["routing_reason"] != "resumed_pending_clarify"
 
 
 class TestCompoundIntents:

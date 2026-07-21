@@ -586,6 +586,13 @@ if (chatForm) {
       const { intent, matched, reply, result, routing_reason, matched_keywords, citation } =
         response.data;
 
+      if (intent === "small_talk") {
+        // A greeting/thanks/goodbye — no engine ran, no result card, just
+        // the reply as-is.
+        addChatBubble("assistant", reply);
+        return;
+      }
+
       if (intent === "clarify" || intent === "fact") {
         // Either asking a question back, or answering straight from the
         // built-in fact library — neither ran an engine, so there's no
