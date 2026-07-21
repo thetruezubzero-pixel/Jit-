@@ -44,7 +44,8 @@ class TestFilingStatusBasic:
         assert result.taxable_income == 65_400.0
         # Must be above 10% and 12% brackets (up to $47,150), hitting 22%
         assert result.marginal_federal_rate == 0.22
-        assert result.federal_income_tax > 0
+        # 11,600*0.10 + 35,550*0.12 + 18,250*0.22 = 1,160 + 4,266 + 4,015
+        assert result.federal_income_tax == 9_441.0
 
     def test_mfj_higher_standard_deduction(self, calculator):
         """MFJ standard deduction should be double the single deduction."""
@@ -115,10 +116,10 @@ class TestSelfEmployment:
             filing_status=FilingStatus.SINGLE,
             self_employment_income=50_000,
         )
-        assert result.self_employment_tax > 0
-        # SE tax = 15.3% on 92.35% of net SE income
-        expected = round(50_000 * 0.9235 * 0.153, 2)
-        assert abs(result.self_employment_tax - expected) < 2  # Small rounding tolerance
+        # SE tax = 12.4% SS + 2.9% Medicare on 92.35% of net SE income
+        # se_base = 50,000 * 0.9235 = 46,175; SS = 46,175*0.124 = 5,725.70;
+        # Medicare = 46,175*0.029 = 1,339.075 (uncapped, below the SS wage base)
+        assert result.self_employment_tax == 7_064.77
 
     def test_se_deduction_reduces_agi(self, calculator):
         """Half of SE tax should reduce AGI."""
@@ -127,8 +128,8 @@ class TestSelfEmployment:
             filing_status=FilingStatus.SINGLE,
             self_employment_income=100_000,
         )
-        # AGI should be less than gross income due to SE deduction
-        assert result.adjusted_gross_income < 100_000
+        # se_tax = 14,129.55; half (7,064.775) deducted from gross income
+        assert result.adjusted_gross_income == 100_000 - (14_129.55 * 0.5)
 
 
 class TestCapitalGains:
@@ -153,7 +154,9 @@ class TestCapitalGains:
             w2_wages=80_000,
             long_term_capital_gains=20_000,
         )
-        assert result.long_term_capital_gains_tax > 0
+        # Ordinary taxable income (65,400) already exceeds the $47,025 0%
+        # threshold, so the full $20,000 of LTCG stacks into the 15% band.
+        assert result.long_term_capital_gains_tax == 3_000.0
 
 
 class TestNIIT:
@@ -167,7 +170,9 @@ class TestNIIT:
             w2_wages=200_000,
             net_investment_income=50_000,
         )
-        assert result.niit > 0
+        # niit_base = min(50,000 investment income, 250,000 AGI - 200,000
+        # threshold) = 50,000; NIIT = 50,000 * 3.8% = 1,900
+        assert result.niit == 1_900.0
 
     def test_niit_not_applied_below_threshold(self, calculator):
         """No NIIT below $200k for single filers."""
@@ -199,7 +204,8 @@ class TestStateEstimation:
             filing_status=FilingStatus.SINGLE,
             state_code="CA",
         )
-        assert result.state_tax > 0
+        # Flat-rate approximation: AGI (100,000, no adjustments) * 9.3% CA rate
+        assert result.state_tax == 9_300.0
         assert result.state_code == "CA"
 
     def test_no_state_code_gives_zero_state_tax(self, calculator):

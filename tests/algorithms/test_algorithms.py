@@ -95,19 +95,21 @@ class TestDecisionTree:
         )
         assert "STANDARD" in result.recommendation.upper()
 
-    def test_confidence_between_0_and_1(self):
-        """All decision tree results should have confidence in [0, 1]."""
+    def test_confidence_matches_leaf_node(self):
+        """Condition nodes pass through the confidence of the leaf they route to."""
         tree = DecisionTree.build_filing_status_tree()
-        for scenario in [
-            {"is_married": True, "prefer_filing_separately": False},
+        # married_check(True) -> mfs_or_mfj(prefer_separately=False) -> mfj_rec
+        mfj_result = tree.evaluate({"is_married": True, "prefer_filing_separately": False})
+        assert mfj_result.confidence == 0.90
+        # married_check(False) -> qss_check(False) -> has_qualifying_person(True) -> hoh_rec
+        hoh_result = tree.evaluate(
             {
                 "is_married": False,
                 "has_qualifying_dependent": True,
                 "is_qualifying_surviving_spouse": False,
-            },
-        ]:
-            result = tree.evaluate(scenario)
-            assert 0.0 <= result.confidence <= 1.0
+            }
+        )
+        assert hoh_result.confidence == 0.92
 
     def test_path_non_empty(self):
         """Path taken should include at least one node."""
@@ -385,6 +387,13 @@ class TestRiskAssessor:
             claimed_home_office=True,
             large_charitable_pct=0.40,
         )
-        assert 0.0 <= profile.audit_risk_score <= 1.0
-        assert 0.0 <= profile.penalty_risk_score <= 1.0
-        assert 0.0 <= profile.overall_risk_score <= 1.0
+        # Audit-category factors present: schedule_c (0.35) + home_office
+        # (0.20) + large_charitable (0.25, since 40% > 30% threshold) = 0.80
+        assert profile.audit_risk_score == 0.8
+        # No penalty-category factors triggered (no unreported income,
+        # substantial understatement, or late filing)
+        assert profile.penalty_risk_score == 0.0
+        # overall = audit*0.4 + penalty*0.35 + compliance*0.25
+        # compliance = foreign_income (0.40) + crypto (0.25) = 0.65
+        # = 0.8*0.4 + 0.0*0.35 + 0.65*0.25 = 0.32 + 0 + 0.1625 = 0.4825
+        assert profile.overall_risk_score == 0.483
