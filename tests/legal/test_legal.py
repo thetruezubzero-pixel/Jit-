@@ -6,7 +6,7 @@ from jit.legal.document_processor import (
     DocumentProcessor,
     DocumentType,
 )
-from jit.legal.statute_parser import StatuteParser, CodeType
+from jit.legal.statute_parser import StatuteParser, CodeType, StatuteSection
 from jit.legal.case_analyzer import CaseAnalyzer, CourtLevel
 from jit.legal.compliance_engine import ComplianceEngine, RiskLevel
 from jit.legal.engine import RealLegalAnalyzer
@@ -155,6 +155,82 @@ class TestStatuteParser:
         parser = StatuteParser()
         section = parser.parse_cfr_section("26", "1.61-1", "Income from services...")
         assert "C.F.R." in section.citation
+
+    def test_state_code_citation_uses_generic_fallback(self):
+        """Non-USC/CFR code types should fall back to the generic citation format."""
+        section = StatuteSection(code_type=CodeType.STATE_CODE, title="CA", section="17041")
+        assert section.citation == "state Title CA, § 17041"
+
+    def test_cfr_xref_extraction_matches_standard_space_format(self):
+        """Regression: _CFR_XREF_PATTERN required the section number to
+        immediately follow '§' with no whitespace, so the standard
+        citation format ('§ 1.61-1', with a space) never matched -- only
+        the rarer no-space form did. document_processor.py's equivalent
+        pattern already allows optional whitespace after '§'; statute_parser
+        did not, so real-world CFR cross-references were silently dropped."""
+        parser = StatuteParser()
+        section = parser.parse_cfr_section(
+            "26",
+            "1.62-1",
+            "See 26 C.F.R. § 1.61 for further guidance on this matter.",
+        )
+        assert "26 C.F.R. § 1.61" in section.cross_references
+
+    def test_parse_document_splits_multiple_sections(self):
+        """parse_document should split a multi-section statute into an indexed set."""
+        parser = StatuteParser()
+        doc_text = (
+            "\n§ 61. Gross income defined\n\n"
+            "(a) General definition.\n"
+            "Gross income means all income from whatever source derived.\n\n"
+            "§ 62. Adjusted gross income defined\n\n"
+            "(a) Definition.\n"
+            "The term adjusted gross income means gross income minus certain "
+            "deductions.\n"
+        )
+        index = parser.parse_document(doc_text, code_type=CodeType.USC, title="26")
+        assert [s.section for s in index.sections] == ["61", "62"]
+        assert index.sections[0].heading == "Gross income defined"
+        assert index.sections[1].citation == "26 U.S.C. § 62"
+
+    def test_statute_index_get_section(self):
+        """get_section should retrieve a previously indexed section by number."""
+        parser = StatuteParser()
+        doc_text = "\n§ 61. Gross income defined\n\nGross income means all income.\n"
+        index = parser.parse_document(doc_text, code_type=CodeType.USC, title="26")
+        assert index.get_section("61") is not None
+        assert index.get_section("61").heading == "Gross income defined"
+        assert index.get_section("999") is None
+
+    def test_parse_document_cfr_code_type(self):
+        """parse_document should dispatch to parse_cfr_section for CFR documents.
+
+        Note: the section-marker regex used by parse_document (designed for
+        plain USC-style numbers like "61" or "162a") only captures the
+        leading digits of a dotted CFR-style number like "1.61-1", so this
+        uses an undotted number purely to exercise the CFR dispatch branch.
+        """
+        parser = StatuteParser()
+        doc_text = "\n§ 1. Gross income defined\n\nIncome from services is included.\n"
+        index = parser.parse_document(doc_text, code_type=CodeType.CFR, title="26")
+        assert len(index.sections) == 1
+        assert index.sections[0].code_type == CodeType.CFR
+        assert index.sections[0].citation == "26 C.F.R. § 1"
+
+    def test_statute_index_search_matches_heading_and_text(self):
+        """search should find sections by heading, body text, or keyword."""
+        parser = StatuteParser()
+        doc_text = (
+            "\n§ 61. Gross income defined\n\n"
+            "Gross income means all income from whatever source derived.\n\n"
+            "§ 62. Adjusted gross income defined\n\n"
+            "The term adjusted gross income means gross income minus certain "
+            "deductions.\n"
+        )
+        index = parser.parse_document(doc_text, code_type=CodeType.USC, title="26")
+        results = index.search("adjusted gross income")
+        assert [s.section for s in results] == ["62"]
+        assert index.search("no such phrase anywhere") == []
 
 
 # -----------------------------------------------------------------------

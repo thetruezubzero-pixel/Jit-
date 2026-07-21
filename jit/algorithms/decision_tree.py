@@ -195,7 +195,11 @@ class DecisionNode:
             )
 
         child_result = next_node.evaluate(context)
-        child_result.path_taken = [self.node_id] + child_result.path_taken
+        # context already carries self.node_id (appended by the parent
+        # evaluate() call's context.child(self.node_id) before dispatch),
+        # so next_node.evaluate(context) already built on top of it --
+        # prepending it again here duplicated the entire ancestor chain
+        # in path_taken for every level of nesting.
         child_result.supporting_reasons.insert(
             0,
             f"Condition '{self.label}' = {'YES' if branch_taken else 'NO'}",
@@ -214,7 +218,8 @@ class DecisionNode:
         # Recurse into yes_child (single-branch continuation) if available
         if self.yes_child:
             child_result = self.yes_child.evaluate(context)
-            child_result.path_taken = [self.node_id] + child_result.path_taken
+            # context already carries self.node_id -- see the matching note
+            # in _eval_condition; do not prepend it again here.
             child_result.intermediate_results[self.result_key or self.node_id] = value
             return child_result
 
@@ -254,9 +259,13 @@ class DecisionNode:
         for r in sub_results:
             all_intermediate.update(r.intermediate_results)
 
-        combined_path = [self.node_id]
+        # Each sub_result.path_taken already starts with context.path
+        # (which itself already ends in self.node_id -- see the note in
+        # _eval_condition), so only append each child's node-specific
+        # suffix, not the whole path again.
+        combined_path = list(context.path)
         for r in sub_results:
-            combined_path.extend(r.path_taken)
+            combined_path.extend(r.path_taken[len(context.path) :])
 
         return DecisionResult(
             recommendation=" | ".join(recommendations),

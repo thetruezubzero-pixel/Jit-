@@ -96,7 +96,7 @@ _USC_XREF_PATTERN = re.compile(
 
 # Pattern to match CFR cross-references
 _CFR_XREF_PATTERN = re.compile(
-    r"(\d+)\s+C\.?F\.?R\.?\s+(?:§+|part\s+|pt\.?\s*)(\d+(?:\.\d+)?)",
+    r"(\d+)\s+C\.?F\.?R\.?\s+(?:§+\s*|part\s+|pt\.?\s*)(\d+(?:\.\d+)?)",
     re.IGNORECASE,
 )
 

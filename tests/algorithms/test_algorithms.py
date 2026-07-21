@@ -123,6 +123,29 @@ class TestDecisionTree:
         )
         assert len(result.path_taken) > 0
 
+    def test_path_taken_has_no_duplicate_ancestor_chain(self):
+        """Regression: _eval_condition used to prepend self.node_id onto a
+        child path that already contained it (via context.child() in the
+        parent evaluate() call before dispatch), doubling the entire
+        ancestor chain at every level of nesting. This is rendered
+        directly to users as the "Path Taken" tag list in docs/app.js, so
+        a 3-level condition chain was showing each of the 3 ancestor
+        nodes twice before the final recommendation."""
+        tree = DecisionTree.build_filing_status_tree()
+        result = tree.evaluate(
+            {
+                "is_married": False,
+                "has_qualifying_dependent": True,
+                "is_qualifying_surviving_spouse": False,
+            }
+        )
+        assert result.path_taken == [
+            "married_check",
+            "qss_check",
+            "has_qualifying_person",
+            "rec_hoh",
+        ]
+
     def test_no_root_raises(self):
         """Evaluating a tree with no root should raise ValueError."""
         tree = DecisionTree("Empty Tree")
@@ -162,6 +185,85 @@ class TestDecisionTree:
         tree = DecisionTree("Tax Calculator", root=calc_node)
         result = tree.evaluate({"income": 100_000})
         assert result.value == 25_000.0
+
+    def test_calculation_node_chains_to_yes_child(self):
+        """A CALCULATION node with a yes_child should recurse and merge results."""
+        leaf = DecisionNode(
+            "leaf", NodeType.RECOMMENDATION, "Leaf", recommendation="Done", confidence=0.8
+        )
+        calc_node = DecisionNode(
+            "compute_tax",
+            NodeType.CALCULATION,
+            "Compute Estimated Tax",
+            calculation=lambda ctx: ctx.get("income", 0) * 0.1,
+            result_key="estimated_tax",
+            yes_child=leaf,
+        )
+        tree = DecisionTree("Chained Calculator", root=calc_node)
+        result = tree.evaluate({"income": 50_000})
+        assert result.recommendation == "Done"
+        assert result.path_taken == ["compute_tax", "leaf"]
+        assert result.intermediate_results["estimated_tax"] == 5_000.0
+
+    def test_condition_node_without_callable_raises(self):
+        """A CONDITION node with no condition callable should raise ValueError."""
+        node = DecisionNode("c1", NodeType.CONDITION, "Broken Condition")
+        tree = DecisionTree("Broken Tree", root=node)
+        with pytest.raises(ValueError):
+            tree.evaluate({})
+
+    def test_condition_node_with_no_matching_branch(self):
+        """A CONDITION node whose taken branch has no child should return
+        a terminal result explaining the dead end, not crash."""
+        node = DecisionNode(
+            "c1",
+            NodeType.CONDITION,
+            "Dead End",
+            condition=lambda ctx: True,
+            confidence=0.7,
+        )
+        tree = DecisionTree("Dead End Tree", root=node)
+        result = tree.evaluate({})
+        assert result.confidence == 0.7
+        assert result.value is True
+        assert "no further branch" in result.recommendation
+
+    def test_calculation_node_without_callable_raises(self):
+        """A CALCULATION node with no calculation callable should raise ValueError."""
+        node = DecisionNode("calc1", NodeType.CALCULATION, "Broken Calc")
+        tree = DecisionTree("Broken Tree", root=node)
+        with pytest.raises(ValueError):
+            tree.evaluate({})
+
+    def test_aggregation_node_weighted_confidence(self):
+        """AGGREGATION nodes should combine children's confidence by weight."""
+        n1 = DecisionNode("n1", NodeType.RECOMMENDATION, "N1", recommendation="R1", confidence=0.9)
+        n2 = DecisionNode("n2", NodeType.RECOMMENDATION, "N2", recommendation="R2", confidence=0.5)
+        agg = DecisionNode(
+            "agg", NodeType.AGGREGATION, "Aggregate", children=[(n1, 2.0), (n2, 1.0)]
+        )
+        tree = DecisionTree("Aggregation Tree", root=agg)
+        result = tree.evaluate({})
+        assert result.recommendation == "R1 | R2"
+        # (0.9*2 + 0.5*1) / 3 = 2.3 / 3
+        assert result.confidence == round(2.3 / 3, 4)
+        assert result.path_taken == ["agg", "n1", "n2"]
+
+    def test_aggregation_node_with_no_children(self):
+        """An AGGREGATION node with no children should return a neutral result."""
+        agg = DecisionNode("agg", NodeType.AGGREGATION, "Empty Aggregate")
+        tree = DecisionTree("Empty Aggregation Tree", root=agg)
+        result = tree.evaluate({})
+        assert result.recommendation == "No children to aggregate."
+        assert result.confidence == 0.0
+
+    def test_unsupported_node_type(self):
+        """An unrecognized node type should return a fallback result, not crash."""
+        node = DecisionNode("lookup1", NodeType.LOOKUP, "Unsupported")
+        tree = DecisionTree("Unsupported Tree", root=node)
+        result = tree.evaluate({})
+        assert "unsupported type" in result.recommendation
+        assert result.confidence == 0.5
 
 
 # -----------------------------------------------------------------------
