@@ -384,10 +384,15 @@ def _extract_age(text: str) -> int | None:
     """Pull the speaker's age from free text using common phrasings.
 
     Recognises "I'm 55", "I am 62", "age 45", "55 years old", "turning 60".
-    Only accepts values 18–85 to avoid false-positives on unrelated two-digit
-    numbers (form numbers, percentages, etc.).
+    Only accepts values in [_AGE_MIN, _AGE_MAX] to avoid false-positives on
+    unrelated two-digit numbers (form numbers, percentages, year fragments).
     """
     import re
+
+    # Bounds that filter out stray two-digit numbers while covering all
+    # realistic tax-filer ages.
+    _AGE_MIN = 18  # Minimum working/filing age for tax purposes
+    _AGE_MAX = 85  # Avoids false positives from form numbers, rates, etc.
 
     patterns = [
         r"\bi(?:'m| am)\s+(\d{2})\b",  # "I'm 55" / "I am 55"
@@ -399,7 +404,7 @@ def _extract_age(text: str) -> int | None:
         m = re.search(pat, text.lower())
         if m:
             age = int(m.group(1))
-            if 18 <= age <= 85:
+            if _AGE_MIN <= age <= _AGE_MAX:
                 return age
     return None
 
@@ -437,6 +442,7 @@ _conversation_context: dict = {
     "pending_intent": None,
     "suggested_intent": None,
     "age": None,  # Extracted from free text; enables age-aware advice (e.g. catch-up limits)
+    "mentioned_crypto": False,  # Set to True when any message mentions crypto/bitcoin
 }
 
 # After answering one topic, a natural next question often follows the same
@@ -1471,14 +1477,13 @@ def _compute_intent(
         )
         reply = (
             f"On ${amount:,.0f} AGI, {result['recommended_method']} deduction is better "
-            f"(${result['recommended_deduction']:,.0f}). "
-            f"That saves you roughly ${result['tax_savings']:,.0f} compared to the other method."
-            if result.get("tax_savings")
-            else (
-                f"On ${amount:,.0f} AGI, {result['recommended_method']} deduction is better "
-                f"(${result['recommended_deduction']:,.0f})."
-            )
+            f"(${result['recommended_deduction']:,.0f})."
         )
+        if result.get("tax_savings"):
+            reply += (
+                f" That saves you roughly ${result['tax_savings']:,.0f} "
+                "compared to the other method."
+            )
     elif intent == "risk_assess":
         result = risk_assess(
             {
@@ -1661,6 +1666,10 @@ def chat(payload: dict) -> dict:
     _conversation_context["filing_status"] = filing_status
     _conversation_context["state"] = state
     _conversation_context["age"] = age
+    # Cumulative flag — once crypto/bitcoin is mentioned in any message it stays set
+    # for the rest of the session so session_insights can check without re-scanning history.
+    if _has_any(message, "crypto", "bitcoin", "ethereum", "nft", "virtual currency"):
+        _conversation_context["mentioned_crypto"] = True
     _conversation_context["pending_intent"] = None
 
     if not intents:
@@ -1874,8 +1883,10 @@ def session_insights(payload: dict) -> dict:
         )
 
     # Crypto mentioned without ever running a compliance check.
-    has_crypto_in_history = any("crypto" in str(e) or "bitcoin" in str(e) for e in _session_history)
-    if has_crypto_in_history and not any(
+    # The mentioned_crypto flag is set cumulatively in _conversation_context whenever
+    # any message contains crypto keywords — no need to scan history entries.
+    has_crypto_in_session = bool(_conversation_context.get("mentioned_crypto"))
+    if has_crypto_in_session and not any(
         e["intent"] == "compliance_check" for e in _session_history
     ):
         insights.append(
