@@ -380,6 +380,133 @@ def _has_any(text: str, *keywords: str) -> bool:
     return any(kw in lowered for kw in keywords)
 
 
+# ---------------------------------------------------------------------------
+# Text normalisation for intent classification
+# ---------------------------------------------------------------------------
+
+# Contractions commonly typed without apostrophes (mobile, hurried typing).
+_CONTRACTIONS = {
+    "cant": "cannot",
+    "wont": "will not",
+    "dont": "do not",
+    "doesnt": "does not",
+    "didnt": "did not",
+    "isnt": "is not",
+    "arent": "are not",
+    "wasnt": "was not",
+    "werent": "were not",
+    "wouldnt": "would not",
+    "couldnt": "could not",
+    "shouldnt": "should not",
+    "havent": "have not",
+    "hasnt": "has not",
+    "hadnt": "had not",
+    "whats": "what is",
+    "hows": "how is",
+    "whos": "who is",
+    "thats": "that is",
+    "theres": "there is",
+    "im": "i am",
+    "ive": "i have",
+    "ill": "i will",
+    "theyll": "they will",
+    "youre": "you are",
+    "youve": "you have",
+    "youll": "you will",
+}
+
+# Common misspellings of tax terms that appear in user messages.
+_SPELLING_FIXES = {
+    "decution": "deduction",
+    "dedution": "deduction",
+    "deducton": "deduction",
+    "defuction": "deduction",
+    "quaterly": "quarterly",
+    "quartely": "quarterly",
+    "quarterley": "quarterly",
+    "quaterley": "quarterly",
+    "witholding": "withholding",
+    "withholdng": "withholding",
+    "withdrawl": "withdrawal",
+    "dividents": "dividends",
+    "dividens": "dividends",
+    "benifits": "benefits",
+    "busness": "business",
+    "expences": "expenses",
+    "exspenses": "expenses",
+    "recieve": "receive",
+    "receit": "receipt",
+    "anuual": "annual",
+    "anual": "annual",
+    "penaly": "penalty",
+    "penalthy": "penalty",
+    "fedral": "federal",
+    "goverment": "government",
+    "complience": "compliance",
+    "compliense": "compliance",
+    "algrythm": "algorithm",
+    "algorthm": "algorithm",
+    "defered": "deferred",
+    "deffered": "deferred",
+    "roth ira": "roth ira",  # already correct — listed to prevent other fixes clobbering it
+}
+
+# Regex-based normalisation for hyphenated / dotted tax acronyms and
+# common split representations (e.g. "am-t", "401 k", "i.r.s.").
+_TERM_REGEXES = [
+    (r"\bam[\s\-]+t\b", "amt"),
+    (r"\b401[\s\-]+k\b", "401k"),
+    (r"\b403[\s\-]+b\b", "403b"),
+    (r"\b457[\s\-]+b\b", "457b"),
+    (r"\bi\.r\.s\.?\b", "irs"),
+    (r"\bw[\s\-]+2\b", "w2"),
+    (r"\bsep[\s\-]+ira\b", "sep ira"),
+    (r"\bsolo[\s\-]+401\b", "solo 401"),
+    (r"\b409[\s\-]+a\b", "409a"),
+    (r"\b1099[\s\-]+(nec|misc|k)\b", r"1099 \1"),
+    (r"\bwrite[\s\-]+off(s?)\b", r"write off\1"),
+    (r"\btax[\s\-]+break(s?)\b", r"tax break\1"),
+    (r"\bhome[\s\-]+office\b", "home office"),
+    (r"\bself[\s\-]+employ", "self employ"),
+    (r"\bwash[\s\-]+sale\b", "wash sale"),
+    (r"\b1031[\s\-]+exchange\b", "1031 exchange"),
+    (r"\blike[\s\-]+kind\b", "like kind"),
+    (r"\bnet[\s\-]+operating[\s\-]+loss\b", "net operating loss"),
+]
+
+
+def _normalize_text(text: str) -> str:
+    """Normalise free-form chat text before intent classification.
+
+    Handles contractions without apostrophes (common on mobile), hyphen/dot
+    separated tax acronyms (``am-t`` → ``amt``, ``i.r.s.`` → ``irs``),
+    and frequent tax-term misspellings (``quaterly`` → ``quarterly``).
+    Returns lowercase text; does **not** alter numbers or proper-noun state
+    codes so amount/state extraction on the original ``message`` is unaffected.
+    """
+    import re
+
+    normalized = text.lower()
+
+    # Apply term-level regex substitutions first (most specific).
+    for pattern, replacement in _TERM_REGEXES:
+        normalized = re.sub(pattern, replacement, normalized)
+
+    # Fix common misspellings via whole-word substitution.
+    for wrong, right in _SPELLING_FIXES.items():
+        normalized = re.sub(r"\b" + re.escape(wrong) + r"\b", right, normalized)
+
+    # Expand apostrophe-free contractions.
+    for contracted, expanded in _CONTRACTIONS.items():
+        normalized = re.sub(r"\b" + re.escape(contracted) + r"\b", expanded, normalized)
+
+    # Collapse stray punctuation used as separators (e.g. "---", "...").
+    normalized = re.sub(r"[.]{2,}", " ", normalized)
+    normalized = re.sub(r"\s{2,}", " ", normalized).strip()
+
+    return normalized
+
+
 def _extract_age(text: str) -> int | None:
     """Pull the speaker's age from free text using common phrasings.
 
@@ -443,6 +570,9 @@ _conversation_context: dict = {
     "suggested_intent": None,
     "age": None,  # Extracted from free text; enables age-aware advice (e.g. catch-up limits)
     "mentioned_crypto": False,  # Set to True when any message mentions crypto/bitcoin
+    # Adaptive learning — accumulated within a single browser session.
+    "topics_seen": [],  # Intents that have already been computed; avoids re-suggesting them.
+    "intent_sequence": [],  # Ring buffer (last 5) of intent names for pattern detection.
 }
 
 # After answering one topic, a natural next question often follows the same
@@ -469,6 +599,27 @@ _SUGGESTION_TEXT = {
     "algorithm_optimize": "Want other tax-saving strategies too?",
     "compliance_check": "Want a compliance check too?",
 }
+
+
+def _get_adaptive_suggestion(intent: str) -> str | None:
+    """Return the next suggestion intent, skipping any already seen this session.
+
+    Walks the ``_NEXT_SUGGESTION`` chain starting from *intent*, skipping
+    topics that are already in ``_conversation_context["topics_seen"]``.
+    Returns ``None`` once there is nothing new left to suggest — avoids
+    suggesting topics the user has already explored this session, which is the
+    "learns what you have done" behaviour.
+    """
+    topics_seen: set[str] = set(_conversation_context.get("topics_seen") or [])
+    candidate = _NEXT_SUGGESTION.get(intent)
+    visited: set[str] = {intent}
+    while candidate and candidate in topics_seen:
+        if candidate in visited:
+            # Circular chain — nothing new to offer.
+            return None
+        visited.add(candidate)
+        candidate = _NEXT_SUGGESTION.get(candidate)
+    return candidate if candidate and candidate in _SUGGESTION_TEXT else None
 
 _AFFIRMATIVE_PHRASES = {
     "yes",
@@ -1238,6 +1389,13 @@ _INTENT_KEYWORDS = {
         "safe harbor",
         "underpayment",
         "quarterly estimated",
+        # colloquial
+        "quarterly taxes",
+        "quarterly due",
+        "quarterly payment",
+        "pay quarterly",
+        "pay by quarter",
+        "estimated payments",
     ),
     "compliance_check": (
         "compliance",
@@ -1247,9 +1405,23 @@ _INTENT_KEYWORDS = {
         "1099 filing",
         "crypto wallet",
         "virtual currency report",
+        # colloquial
+        "am i compliant",
+        "do i need to report",
+        "1099 requirements",
     ),
     "document_analyze": ("contract", "clause", "document", "agreement", "indemnif"),
-    "filing_status_tree": ("filing status", "should i file", "file as single", "file jointly"),
+    "filing_status_tree": (
+        "filing status",
+        "should i file",
+        "file as single",
+        "file jointly",
+        # colloquial
+        "how should i file",
+        "what status should i",
+        "married filing",
+        "head of household",
+    ),
     "deduction_optimize": (
         "deduction",
         "itemize",
@@ -1259,6 +1431,16 @@ _INTENT_KEYWORDS = {
         "write-off",
         "deductible expense",
         "mortgage interest deduction",
+        # colloquial / metaphor
+        "tax break",
+        "tax breaks",
+        "deductible",
+        "can i deduct",
+        "is this deductible",
+        "write offs",
+        "writing off",
+        "throwing money at taxes",
+        "tax write",
     ),
     "risk_assess": (
         "audit risk",
@@ -1269,6 +1451,18 @@ _INTENT_KEYWORDS = {
         "red flag irs",
         "irs red flag",
         "noticed by irs",
+        # colloquial / metaphor
+        "audit chance",
+        "chance of audit",
+        "am i at risk",
+        "worried about audit",
+        "worried about irs",
+        "irs scrutiny",
+        "irs watching",
+        "irs coming",
+        "flag my return",
+        "will i get audited",
+        "audit me",
     ),
     "algorithm_optimize": (
         "save on tax",
@@ -1281,6 +1475,25 @@ _INTENT_KEYWORDS = {
         "tax savings",
         "tax shelter",
         "optimize",
+        # colloquial / metaphor — user expressing frustration or desire to reduce burden
+        "pay less tax",
+        "pay less in tax",
+        "paying too much tax",
+        "cut my tax",
+        "cut taxes",
+        "save money on tax",
+        "lower tax burden",
+        "lower my taxes",
+        "lower my bill",
+        "reduce tax burden",
+        "bleeding in tax",
+        "killing me in tax",
+        "help me save",
+        "how to save",
+        "what can i do to lower",
+        "ways to reduce",
+        "tax efficient",
+        "tax optimization",
     ),
     "tax_calculate": (
         "tax",
@@ -1291,6 +1504,16 @@ _INTENT_KEYWORDS = {
         "federal tax",
         "effective tax rate",
         "tax owed",
+        # colloquial
+        "tax bill",
+        "how much will i pay",
+        "how much am i paying",
+        "taxes due",
+        "what is my tax",
+        "what will i owe",
+        "how much do i owe",
+        "what do i owe",
+        "tax return this year",
     ),
     "platform_analyze": ("full analysis", "everything", "complete case", "full case", "overall"),
 }
@@ -1560,16 +1783,26 @@ def _compute_intent(
 def chat(payload: dict) -> dict:
     """Route a free-text message to the right engine(s) and reply in one place.
 
-    This is plain keyword/regex matching, not a language model — it stays
-    within "no paid API, GitHub Pages only." It reuses the exact same
-    handlers as every other tab, just chosen from the message text instead
-    of a form. A compound question naming two distinct topics gets both
+    This is keyword/regex matching augmented with text normalisation — it
+    stays within "no paid API, GitHub Pages only." Text is normalised before
+    intent classification so that common typos, missing apostrophes, and
+    hyphenated tax acronyms (e.g. ``am-t``, ``i.r.s.``) are handled
+    naturally.  A compound question naming two distinct topics gets both
     answered in one reply (see _classify_intents); otherwise it's one topic
-    per message just like before.
+    per message.  The session learns which topics have been covered and
+    avoids suggesting ones already explored (see _get_adaptive_suggestion).
     """
     message = payload.get("message", "")
+    # Normalised copy used for intent classification only; the original
+    # ``message`` string is preserved for amount/state extraction (which
+    # needs the original casing for uppercase state abbreviations) and for
+    # document analysis (which processes the raw text directly).
+    normalized = _normalize_text(message)
 
-    fact_answer = _match_fact(message)
+    fact_answer = _match_fact(normalized)
+    if fact_answer is None:
+        # Also check original in case fact keywords don't survive normalisation
+        fact_answer = _match_fact(message)
     if fact_answer is not None:
         # A factual lookup ("what's the SALT cap") doesn't depend on the
         # user's own numbers and shouldn't disturb whatever topic/amount is
@@ -1599,10 +1832,10 @@ def chat(payload: dict) -> dict:
     age = extracted_age if extracted_age is not None else _conversation_context["age"]
 
     self_employed = _has_any(
-        message, "self employ", "self-employ", "1099", "schedule c", "freelance"
+        normalized, "self employ", "self-employ", "1099", "schedule c", "freelance"
     )
     business_owner = _has_any(
-        message, "business owner", "own a business", "my business", "llc", "s-corp"
+        normalized, "business owner", "own a business", "my business", "llc", "s-corp"
     )
 
     # A transparent, rule-based label for *why* this message routed the way
@@ -1618,7 +1851,7 @@ def chat(payload: dict) -> dict:
         intent_matched = True
         routing_reason = "resumed_suggestion"
     else:
-        intents = _classify_intents(message)
+        intents = _classify_intents(normalized)
         intent_matched = bool(intents)
         if intent_matched:
             routing_reason = "keyword_match"
@@ -1668,7 +1901,7 @@ def chat(payload: dict) -> dict:
     _conversation_context["age"] = age
     # Cumulative flag — once crypto/bitcoin is mentioned in any message it stays set
     # for the rest of the session so session_insights can check without re-scanning history.
-    if _has_any(message, "crypto", "bitcoin", "ethereum", "nft", "virtual currency"):
+    if _has_any(normalized, "crypto", "bitcoin", "ethereum", "nft", "virtual currency"):
         _conversation_context["mentioned_crypto"] = True
     _conversation_context["pending_intent"] = None
 
@@ -1715,15 +1948,18 @@ def chat(payload: dict) -> dict:
     for i, result, _ in computed:
         _record_session_entry(i, amount, self_employed, business_owner, state, result)
 
+    # Use normalized text for matched-keyword reporting so that typo-corrected
+    # routing shows the canonical keyword that triggered it.
     matched_keywords = (
-        {i: _matched_keywords_for(i, message) for i, _, _ in computed}
+        {i: _matched_keywords_for(i, normalized) for i, _, _ in computed}
         if routing_reason == "keyword_match"
         else {}
     )
 
     if len(computed) == 1:
         intent, result, reply = computed[0]
-        next_intent = _NEXT_SUGGESTION.get(intent)
+        # Adaptive suggestion: skip topics the user has already explored.
+        next_intent = _get_adaptive_suggestion(intent)
         _conversation_context["suggested_intent"] = next_intent
         if next_intent:
             reply = f"{reply} {_SUGGESTION_TEXT[next_intent]}"
@@ -1734,6 +1970,17 @@ def chat(payload: dict) -> dict:
         # A compound answer already covered two topics — don't also tack on
         # a suggestion for a third.
         _conversation_context["suggested_intent"] = None
+
+    # Record which intents have been run so adaptive suggestions can skip them.
+    topics_seen: list = _conversation_context.get("topics_seen") or []
+    intent_sequence: list = _conversation_context.get("intent_sequence") or []
+    for i, _, _ in computed:
+        if i not in topics_seen:
+            topics_seen.append(i)
+        intent_sequence.append(i)
+    _conversation_context["topics_seen"] = topics_seen
+    # Keep the sequence bounded to the last 10 entries.
+    _conversation_context["intent_sequence"] = intent_sequence[-10:]
 
     return {
         "intent": intent,
@@ -1755,8 +2002,12 @@ def chat(payload: dict) -> dict:
 
 def chat_reset(payload: dict) -> dict:
     """Forget everything chat() has remembered so far this session."""
-    for key in _conversation_context:
-        _conversation_context[key] = None
+    for key in list(_conversation_context):
+        if isinstance(_conversation_context[key], list):
+            _conversation_context[key] = []
+        else:
+            _conversation_context[key] = None
+    _conversation_context["mentioned_crypto"] = False
     _session_history.clear()
     return {"reset": True}
 
