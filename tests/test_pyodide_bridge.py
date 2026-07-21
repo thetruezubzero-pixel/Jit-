@@ -768,3 +768,156 @@ class TestChatStatePersistence:
         response = _run("chat_import_state", {"context": "not a dict", "history": "not a list"})
         assert response["success"] is True
         assert response["data"] == {"restored": True}
+
+
+class TestNewFactEntries:
+    """New fact entries added in the intelligence expansion — verify each
+    routes to the fact handler and returns the expected snippet."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    @pytest.mark.parametrize(
+        "message,expected_snippet",
+        [
+            ("how does a roth conversion work", "converted amount is included in ordinary income"),
+            ("what is an s corp election", "reasonable salary"),
+            ("sep ira vs solo 401k", "elective deferral"),
+            ("sep ira contribution limit", "$69,000"),
+            ("what is real estate professional status", "750 hours"),
+            ("passive activity loss rules", "Material participation"),
+            ("depreciation recapture 1250", "25%"),
+            ("qualified opportunity zone fund", "180 days"),
+            ("solar tax credit amount", "30%"),
+            ("ev tax credit amount", "$7,500"),
+            ("aca premium tax credit rules", "400% of the Federal Poverty Level"),
+            ("what is qsbs section 1202", "$10 million"),
+            ("inherited ira 10 year rule", "10 years"),
+            ("when do rmds start", "age 73"),
+            ("iso vs nqso stock options", "AMT preference"),
+            ("crypto tax treatment", "property"),
+            ("alimony tax after tcja", "2018"),
+            ("what is net unrealized appreciation", "lump-sum"),
+            ("foreign tax credit form 1116", "Form 1116"),
+            ("qualified charitable distribution ira", "$105,000"),
+            ("fsa contribution limit 2024", "$3,200"),
+            ("rental property depreciation period", "27.5"),
+            ("nonqualified deferred compensation rules", "§409A"),
+            ("above the line deductions list", "Schedule 1"),
+        ],
+    )
+    def test_new_fact_answers_contain_expected_snippet(self, message, expected_snippet):
+        response = _run("chat", {"message": message})
+        data = response["data"]
+        assert (
+            data["intent"] == "fact"
+        ), f"Expected fact intent for '{message}', got '{data['intent']}'"
+        assert (
+            expected_snippet in data["reply"]
+        ), f"Expected '{expected_snippet}' in reply to '{message}', got: {data['reply']}"
+
+
+class TestAgeExtraction:
+    """_extract_age is surfaced via the 'extracted.age' key in chat() responses
+    and persists in _conversation_context for subsequent messages."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    @pytest.mark.parametrize(
+        "message,expected_age",
+        [
+            ("I'm 55 and want to save on taxes", 55),
+            ("I am 62 years old filing single", 62),
+            ("age 45, what are my options", 45),
+            ("I am 50 years old and self employed", 50),
+            ("turning 60 next year", 60),
+        ],
+    )
+    def test_age_is_extracted_from_message(self, message, expected_age):
+        # Need an income too so we don't hit the clarify branch
+        response = _run("chat", {"message": f"{message}, income is 120k"})
+        data = response["data"]
+        assert (
+            data["extracted"]["age"] == expected_age
+        ), f"Expected age {expected_age} from '{message}', got {data['extracted']['age']}"
+
+    def test_age_persists_across_messages(self):
+        _run("chat", {"message": "I'm 55, income is 150k, how can I save on taxes?"})
+        # Follow-up with no age mentioned — should still see age from context
+        response = _run("chat", {"message": "what's my audit risk"})
+        data = response["data"]
+        assert data["extracted"]["age"] == 55
+
+    def test_age_out_of_range_is_ignored(self):
+        # "15 years" or "90 years" should not be extracted
+        response = _run("chat", {"message": "I am 15 years old, income 30k"})
+        assert response["data"]["extracted"]["age"] is None
+
+        response = _run("chat", {"message": "I am 90 years old, income 30k"})
+        assert response["data"]["extracted"]["age"] is None
+
+    def test_catch_up_eligible_note_in_optimize_reply(self):
+        response = _run(
+            "chat",
+            {"message": "I'm 55, income is 200k, how can I save on taxes?"},
+        )
+        data = response["data"]
+        assert data["intent"] == "algorithm_optimize"
+        assert "catch-up" in data["reply"].lower()
+
+
+class TestStateExtraction:
+    """_extract_state uses longest-match so 'west virginia' wins over
+    the 'virginia' substring, and all 50 states + DC are recognised."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_west_virginia_not_confused_with_virginia(self):
+        response = _run(
+            "chat",
+            {"message": "I live in West Virginia and make 100k, what's my tax?"},
+        )
+        assert response["data"]["extracted"]["state"] == "WV"
+
+    def test_new_york_is_recognised(self):
+        response = _run(
+            "chat",
+            {"message": "I earn 200k in New York, calculate my tax"},
+        )
+        assert response["data"]["extracted"]["state"] == "NY"
+
+    def test_north_carolina_preferred_over_carolina(self):
+        response = _run(
+            "chat",
+            {"message": "I'm in North Carolina making 80k, what do I owe?"},
+        )
+        assert response["data"]["extracted"]["state"] == "NC"
+
+    @pytest.mark.parametrize(
+        "state_name,expected_code",
+        [
+            ("colorado", "CO"),
+            ("washington", "WA"),
+            ("nevada", "NV"),
+            ("oregon", "OR"),
+            ("florida", "FL"),
+            ("district of columbia", "DC"),
+        ],
+    )
+    def test_previously_missing_states_are_now_recognised(self, state_name, expected_code):
+        response = _run(
+            "chat",
+            {"message": f"I live in {state_name} and make 100k what's my tax?"},
+        )
+        assert response["data"]["extracted"]["state"] == expected_code
