@@ -204,6 +204,30 @@ class TestAmountExtraction:
         # actual amount ("200k") must win.
         assert bridge._extract_amount("1099 income of 200k") == 200_000.0
 
+    def test_word_starting_with_m_not_treated_as_million_suffix(self):
+        # Regression: "15000 mortgage interest" — the 'm' at the start of
+        # "mortgage" must NOT be captured as a million multiplier.
+        # Before the fix, "15000 mortgage" → 15,000,000,000 (15 billion).
+        assert bridge._extract_amount("15000 mortgage interest") == 15_000.0
+
+    def test_word_starting_with_m_in_married_not_million(self):
+        # Regression: "80000 married" → the 'm' in "married" is a word
+        # character, not a standalone suffix, so must not multiply by 1M.
+        assert bridge._extract_amount("I make 80000 married filing jointly") == 80_000.0
+
+    def test_word_starting_with_k_not_treated_as_thousand_suffix(self):
+        # Regression: "100000 kids" — the 'k' in "kids" must not be captured
+        # as a thousands multiplier → 100,000,000.
+        assert bridge._extract_amount("100000 kids under 17") == 100_000.0
+
+    def test_standalone_k_suffix_still_works(self):
+        # Standalone "k" (followed by non-word char) must still multiply by 1000.
+        assert bridge._extract_amount("earn 120k") == 120_000.0
+
+    def test_standalone_m_suffix_still_works(self):
+        # Standalone "m" (followed by non-word char) must still multiply by 1M.
+        assert bridge._extract_amount("1.5m salary") == 1_500_000.0
+
 
 class TestChat:
     @pytest.fixture(autouse=True)
@@ -921,3 +945,95 @@ class TestStateExtraction:
             {"message": f"I live in {state_name} and make 100k what's my tax?"},
         )
         assert response["data"]["extracted"]["state"] == expected_code
+
+
+class TestDeductionReply:
+    """Deduction-optimize reply includes tax_benefit_difference when itemizing
+    saves a meaningful amount over the standard deduction (the 'tax_savings'
+    key never existed in the result — was dead code until this fix)."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_deduction_reply_includes_savings_and_correct_amount_when_itemizing_wins(self):
+        # At $500k income the simulated mortgage (8% of AGI = $40,000) and
+        # charitable (3% = $15,000) together beat the $14,600 standard
+        # deduction, so tax_benefit_difference is guaranteed to be > 0 here.
+        response = _run(
+            "chat",
+            {"message": "should I itemize with 500k income in CA?"},
+        )
+        data = response["data"]
+        assert data["intent"] == "deduction_optimize"
+        result = data["result"]
+        diff = result.get("tax_benefit_difference", 0)
+        assert diff > 0, "Expected itemizing to win at $500k income"
+        # The savings sentence should appear and quote the correct dollar figure.
+        assert "saves you roughly" in data["reply"]
+        assert f"${diff:,.0f}" in data["reply"]
+
+    def test_deduction_reply_omits_savings_line_when_standard_wins(self):
+        # At $20k income the simulated itemized deductions (11% of AGI = $2,200)
+        # fall far short of the $14,600 standard deduction, so
+        # tax_benefit_difference must be 0 and the savings line must not appear.
+        response = _run(
+            "chat",
+            {"message": "should I itemize with 20k income?"},
+        )
+        data = response["data"]
+        assert data["intent"] == "deduction_optimize"
+        result = data["result"]
+        assert (
+            result.get("tax_benefit_difference", 0) == 0
+        ), "Expected standard deduction to win outright at $20k income"
+        assert "saves you roughly" not in data["reply"]
+
+
+class TestCryptoContextPropagation:
+    """Crypto mentioned in an earlier message should propagate to a later
+    risk_assess call — the fix wires _conversation_context['mentioned_crypto']
+    into the has_crypto_transactions flag passed to risk_assess."""
+
+    @pytest.fixture(autouse=True)
+    def reset_conversation(self):
+        bridge.dispatch("chat_reset", "{}")
+        yield
+        bridge.dispatch("chat_reset", "{}")
+
+    def test_crypto_from_earlier_message_included_in_followup_risk_assess(self):
+        # Baseline: a plain risk_assess with no prior crypto mention should
+        # NOT produce a crypto-specific recommendation.
+        baseline = _run("chat", {"message": "what is my audit risk on 150k income?"})
+        assert baseline["data"]["intent"] == "risk_assess"
+        baseline_recs = " ".join(baseline["data"]["result"].get("recommendations", []))
+        assert "[crypto]" not in baseline_recs
+
+        bridge.dispatch("chat_reset", "{}")
+
+        # Turn 1: mention bitcoin (routes to tax_calculate); sets mentioned_crypto.
+        _run("chat", {"message": "I have bitcoin and 150k income, what's my tax?"})
+        assert bridge._conversation_context["mentioned_crypto"] is True
+
+        # Turn 2: ask about audit risk WITHOUT repeating "crypto" — the context
+        # flag must propagate into the has_crypto_transactions argument so the
+        # risk engine produces the crypto-specific recommendation.
+        response = _run("chat", {"message": "what is my audit risk?"})
+        data = response["data"]
+        assert data["intent"] == "risk_assess"
+        recs = " ".join(data["result"].get("recommendations", []))
+        assert "[crypto]" in recs, (
+            "Crypto flag from context should appear in risk_assess recommendations "
+            "even when the follow-up message itself contains no crypto keywords"
+        )
+
+    def test_chat_reset_clears_mentioned_crypto_as_false_not_none(self):
+        _run("chat", {"message": "I have ethereum and 100k income"})
+        assert bridge._conversation_context["mentioned_crypto"] is True
+
+        bridge.dispatch("chat_reset", "{}")
+        # After reset, the key must be boolean False (not None) so type-checking
+        # code that does `if isinstance(v, bool)` doesn't break.
+        assert bridge._conversation_context["mentioned_crypto"] is False
