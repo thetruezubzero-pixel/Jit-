@@ -261,7 +261,7 @@ def _extract_amount(text: str) -> float | None:
 
     best_value = None
     best_score = -1
-    for match in re.finditer(r"\$?\s*(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?", text):
+    for match in re.finditer(r"\$?\s*(\d[\d,]*(?:\.\d+)?)\s*(?:([kKmM])(?!\w))?", text):
         raw, suffix = match.group(1), (match.group(2) or "").lower()
         number = float(raw.replace(",", ""))
         if suffix == "k":

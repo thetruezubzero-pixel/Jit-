@@ -204,6 +204,30 @@ class TestAmountExtraction:
         # actual amount ("200k") must win.
         assert bridge._extract_amount("1099 income of 200k") == 200_000.0
 
+    def test_word_starting_with_m_not_treated_as_million_suffix(self):
+        # Regression: "15000 mortgage interest" — the 'm' at the start of
+        # "mortgage" must NOT be captured as a million multiplier.
+        # Before the fix, "15000 mortgage" → 15,000,000,000 (15 billion).
+        assert bridge._extract_amount("15000 mortgage interest") == 15_000.0
+
+    def test_word_starting_with_m_in_married_not_million(self):
+        # Regression: "80000 married" → the 'm' in "married" is a word
+        # character, not a standalone suffix, so must not multiply by 1M.
+        assert bridge._extract_amount("I make 80000 married filing jointly") == 80_000.0
+
+    def test_word_starting_with_k_not_treated_as_thousand_suffix(self):
+        # Regression: "100000 kids" — the 'k' in "kids" must not be captured
+        # as a thousands multiplier → 100,000,000.
+        assert bridge._extract_amount("100000 kids under 17") == 100_000.0
+
+    def test_standalone_k_suffix_still_works(self):
+        # Standalone "k" (followed by non-word char) must still multiply by 1000.
+        assert bridge._extract_amount("earn 120k") == 120_000.0
+
+    def test_standalone_m_suffix_still_works(self):
+        # Standalone "m" (followed by non-word char) must still multiply by 1M.
+        assert bridge._extract_amount("1.5m salary") == 1_500_000.0
+
 
 class TestChat:
     @pytest.fixture(autouse=True)
