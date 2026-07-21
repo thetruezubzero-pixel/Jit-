@@ -1479,9 +1479,9 @@ def _compute_intent(
             f"On ${amount:,.0f} AGI, {result['recommended_method']} deduction is better "
             f"(${result['recommended_deduction']:,.0f})."
         )
-        if result.get("tax_savings"):
+        if result.get("tax_benefit_difference", 0) > 0:
             reply += (
-                f" That saves you roughly ${result['tax_savings']:,.0f} "
+                f" That saves you roughly ${result['tax_benefit_difference']:,.0f} "
                 "compared to the other method."
             )
     elif intent == "risk_assess":
@@ -1490,9 +1490,8 @@ def _compute_intent(
                 "agi": amount,
                 "has_schedule_c": self_employed,
                 "schedule_c_income": amount if self_employed else 0.0,
-                "has_crypto_transactions": _has_any(
-                    message, "crypto", "bitcoin", "ethereum", "nft"
-                ),
+                "has_crypto_transactions": _has_any(message, "crypto", "bitcoin", "ethereum", "nft")
+                or bool(_conversation_context.get("mentioned_crypto")),
                 "claimed_home_office": _has_any(message, "home office"),
             }
         )
@@ -1756,7 +1755,10 @@ def chat(payload: dict) -> dict:
 def chat_reset(payload: dict) -> dict:
     """Forget everything chat() has remembered so far this session."""
     for key in _conversation_context:
-        _conversation_context[key] = None
+        # mentioned_crypto is a boolean flag, not a nullable field — False is
+        # the correct empty value, not None (which would be exported as null
+        # and re-imported as None, causing type inconsistency).
+        _conversation_context[key] = False if key == "mentioned_crypto" else None
     _session_history.clear()
     return {"reset": True}
 
