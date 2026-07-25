@@ -12,12 +12,13 @@ audit trail; all the learning/routing/forensics live in the hub.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Query
 
-from jit.federation import protocol
+from jit.federation import hub_client, protocol
 from jit.federation.protocol import (
     AuditLedger,
     Capability,
@@ -68,8 +69,34 @@ def build_manifest(base_url: str = "http://localhost:8000") -> ServiceManifest:
 
 
 def record(action: str, payload: dict[str, Any], actor: str = "") -> None:
-    """Append a federation audit event. Safe to call from request handlers."""
+    """Append a federation audit event, and forward it to the hub if one is
+    configured. Safe to call from request handlers.
+
+    The hub push is fire-and-forget: it only fires when FEDERATION_HUB_URL is
+    set and an event loop is running, and it never blocks or raises here.
+    """
     ledger.append(action, payload, actor=actor)
+    if hub_client.enabled():
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        loop.create_task(hub_client.emit(f"service.{SERVICE_ID}", action, payload, SERVICE_ID))
+
+
+async def announce() -> dict[str, Any]:
+    """Register with the hub and emit a 'service.online' event, if configured.
+
+    Called on startup. A no-op returning ``{"enabled": False}`` unless
+    ``FEDERATION_HUB_URL`` is set, so default deployments are unaffected.
+    """
+    if not hub_client.enabled():
+        return {"enabled": False}
+    registered = await hub_client.register(build_manifest().to_dict())
+    emitted = await hub_client.emit(
+        f"service.{SERVICE_ID}", "service.online", {"service_id": SERVICE_ID}, SERVICE_ID
+    )
+    return {"enabled": True, "registered": registered, "emitted": emitted}
 
 
 @router.get("/health")

@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from jit.api.middleware import RequestLoggingMiddleware
 from jit.api.routers import accounting, legal, algorithms, health, platform
+from jit.federation.adapter import announce as federation_announce
 from jit.federation.adapter import router as federation_router
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -58,6 +59,17 @@ app.include_router(platform.router, prefix="/api/v1/platform", tags=["Platform"]
 # Federation adapter (/federation/*): makes this API a federated service the
 # Neural Swarm hub can register, health-check, and forensically verify.
 app.include_router(federation_router)
+
+
+@app.on_event("startup")
+async def _federation_announce() -> None:
+    """Announce this service to the federation hub if FEDERATION_HUB_URL is set
+    (no-op otherwise; fails soft so hub downtime never blocks startup)."""
+    try:
+        await federation_announce()
+    except Exception:  # never let federation wiring break boot
+        pass
+
 
 # Bundled single-page frontend, served directly by this API.
 app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
