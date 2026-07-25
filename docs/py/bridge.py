@@ -621,6 +621,7 @@ def _get_adaptive_suggestion(intent: str) -> str | None:
         candidate = _NEXT_SUGGESTION.get(candidate)
     return candidate if candidate and candidate in _SUGGESTION_TEXT else None
 
+
 _AFFIRMATIVE_PHRASES = {
     "yes",
     "yeah",
@@ -1548,6 +1549,23 @@ def _classify_intent(text: str) -> tuple[str, bool]:
     return best_intent, True
 
 
+def _keyword_spans(keywords, lowered: str) -> list[tuple[int, int]]:
+    """Character spans of every occurrence of any keyword in `lowered`."""
+    spans: list[tuple[int, int]] = []
+    for kw in keywords:
+        start = lowered.find(kw)
+        while start != -1:
+            spans.append((start, start + len(kw)))
+            start = lowered.find(kw, start + 1)
+    return spans
+
+
+def _overlaps(span: tuple[int, int], spans: list[tuple[int, int]]) -> bool:
+    """True if `span` overlaps any span in `spans`."""
+    start, end = span
+    return any(not (end <= s or start >= e) for s, e in spans)
+
+
 def _classify_intents(text: str) -> list[str]:
     """Like _classify_intent, but also detects a genuine second topic in a
     compound question ("should I itemize and am I at audit risk") instead of
@@ -1555,10 +1573,11 @@ def _classify_intents(text: str) -> list[str]:
 
     A second intent only gets included when the message has an explicit
     conjunction cue *and* that intent has a "strong" (non-generic) keyword
-    hit — otherwise incidental overlap (nearly everything mentions "tax")
-    would turn ordinary single-topic questions into noisy compound answers.
-    Capped at 2 intents so a reply never sprawls across the whole engine
-    suite.
+    hit that occupies text the primary intent hasn't already claimed —
+    otherwise incidental overlap (e.g. "tax bill" inside the optimization
+    phrase "reduce my tax bill") would turn an ordinary single-topic question
+    into a noisy compound answer. Capped at 2 intents so a reply never
+    sprawls across the whole engine suite.
     """
     intent, matched = _classify_intent(text)
     if not matched:
@@ -1568,12 +1587,19 @@ def _classify_intents(text: str) -> list[str]:
     if not any(cue in lowered for cue in _COMPOUND_CUES):
         return [intent]
 
+    # Text spans the primary intent already accounts for; a second intent
+    # whose only keyword hits fall inside these is incidental overlap, not a
+    # genuinely distinct topic.
+    primary_spans = _keyword_spans(_INTENT_KEYWORDS[intent], lowered)
+
     for other, keywords in _INTENT_KEYWORDS.items():
         if other in (intent, "platform_analyze"):
             continue
         weak = _WEAK_KEYWORDS.get(other, set())
-        if any(kw in lowered for kw in keywords if kw not in weak):
-            return [intent, other]
+        strong = [kw for kw in keywords if kw not in weak]
+        for span in _keyword_spans(strong, lowered):
+            if not _overlaps(span, primary_spans):
+                return [intent, other]
 
     return [intent]
 
