@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Jit — Privacy Policy</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%E2%9A%96%EF%B8%8F</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Jit</h1>
+    <p class="subtitle">Privacy Policy</p>
+  </header>
+
+  <main>
+    <section class="panel legal-page">
+      <div class="draft-notice">
+        <strong>Draft.</strong> This page is a starting template, not
+        reviewed by an attorney. Have a qualified attorney review and adapt
+        it — including for GDPR/CCPA applicability to your actual
+        userbase — before relying on it commercially.
+      </div>
+
+      <p class="legal-updated">Last updated: <span id="privacy-date"></span></p>
+
+      <h2>1. The short version</h2>
+      <p>
+        Jit has no server and no database. Everything you type — your
+        income, filing status, questions — is processed entirely inside
+        your own browser and is never transmitted to us, because there is
+        no "us" on the other end of a request. There is nothing for us to
+        collect, store, sell, or lose in a breach, because we never
+        receive it in the first place.
+      </p>
+
+      <h2>2. What's stored, and where</h2>
+      <p>
+        Jit uses your browser's local storage (<code>localStorage</code>)
+        to remember things between visits, entirely on your device:
+      </p>
+      <ul class="legal-list">
+        <li>Income, filing status, and state you've mentioned in chat, so you don't have to repeat yourself</li>
+        <li>Display preferences (compact layout, etc.)</li>
+        <li>An optional Google Gemini API key, if you choose to enter one for AI-assist</li>
+        <li>An optional Jit Pro license key, if you purchase and activate Jit Pro</li>
+      </ul>
+      <p>
+        None of this is sent to any server we operate. It stays on your
+        device until you clear it (via "Clear conversation," clearing the
+        Pro key, or clearing your browser's site data) or your browser
+        clears it itself.
+      </p>
+
+      <h2>3. Third parties you opt into directly</h2>
+      <p>
+        Two features call third-party services <em>directly from your
+        browser</em> — never routed through any server of ours:
+      </p>
+      <ul class="legal-list">
+        <li>
+          <strong>AI assist (optional, off by default):</strong> if you
+          enter your own Google Gemini API key, unmatched questions are
+          sent directly to Google's Gemini API from your browser. Google's
+          own privacy policy governs that exchange, not this one.
+        </li>
+        <li>
+          <strong>Jit Pro license verification (only if you purchase
+          Pro):</strong> your license key is sent directly to the payment
+          processor's (Gumroad's) license-verification API from your
+          browser to confirm it's valid. Gumroad's own privacy policy
+          governs that exchange, and whatever information you provided
+          Gumroad during purchase (e.g., email address) is held by
+          Gumroad, not by us.
+        </li>
+      </ul>
+
+      <h2>4. Cookies and tracking</h2>
+      <p>
+        Jit does not use cookies, analytics, or advertising trackers of
+        any kind. The only client-side storage is the
+        <code>localStorage</code> described above.
+      </p>
+
+      <h2>5. Your choices</h2>
+      <p>
+        Because everything lives in your browser, you're always in full
+        control: clear it via the in-app "Clear conversation" button, the
+        Pro settings' "Deactivate" button, or your browser's own site-data
+        controls (Settings &rarr; Privacy &rarr; Clear browsing data, or
+        equivalent).
+      </p>
+
+      <h2>6. Changes</h2>
+      <p>
+        This policy may be updated from time to time; the "last updated"
+        date above will reflect the most recent revision.
+      </p>
+
+      <h2>7. Contact</h2>
+      <p>
+        [Add a real contact method here — an email address or a link to a
+        contact page — before publishing this for real users.]
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p><a href="index.html">&larr; Back to Jit</a></p>
+  </footer>
+
+  <script>
+    document.getElementById("privacy-date").textContent = new Date().toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  </script>
+</body>
+</html>
