@@ -68,6 +68,9 @@ config/local_settings.py
 *.log
 logs/
 
+# Federation runtime state (tamper-evident audit ledger, regenerated at runtime)
+.federation_ledger.json
+
 # OS
 .DS_Store
 Thumbs.db

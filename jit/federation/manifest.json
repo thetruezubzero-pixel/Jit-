@@ -1,0 +1,38 @@
+{
+  "federation_version": "1.0",
+  "service_id": "jit",
+  "display_name": "Jit — Accounting & Legal Engine",
+  "kind": "service",
+  "language": "python",
+  "base_url": "http://localhost:8000",
+  "health_path": "/federation/health",
+  "audit_path": "/federation/audit",
+  "allowed_origins": [],
+  "allow_credentials": true,
+  "capabilities": [
+    {
+      "name": "tax.calculate",
+      "method": "POST",
+      "path": "/api/v1/accounting/tax/calculate",
+      "description": "Federal income tax calculation.",
+      "equivalence": "compute",
+      "auth_required": false
+    },
+    {
+      "name": "tax.optimize-deductions",
+      "method": "POST",
+      "path": "/api/v1/accounting/deductions/optimize",
+      "description": "Deduction optimization.",
+      "equivalence": "compute",
+      "auth_required": false
+    },
+    {
+      "name": "platform.analyze-case",
+      "method": "POST",
+      "path": "/api/v1/platform/analyze",
+      "description": "Full accounting -> legal -> algorithms pipeline.",
+      "equivalence": "compute",
+      "auth_required": false
+    }
+  ]
+}
