@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from jit.api.middleware import RequestLoggingMiddleware
 from jit.api.routers import accounting, legal, algorithms, health, platform
+from jit.federation.adapter import router as federation_router
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -54,6 +55,9 @@ app.include_router(accounting.router, prefix="/api/v1/accounting", tags=["Accoun
 app.include_router(legal.router, prefix="/api/v1/legal", tags=["Legal"])
 app.include_router(algorithms.router, prefix="/api/v1/algorithms", tags=["Algorithms"])
 app.include_router(platform.router, prefix="/api/v1/platform", tags=["Platform"])
+# Federation adapter (/federation/*): makes this API a federated service the
+# Neural Swarm hub can register, health-check, and forensically verify.
+app.include_router(federation_router)
 
 # Bundled single-page frontend, served directly by this API.
 app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
